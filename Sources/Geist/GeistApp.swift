@@ -9,7 +9,7 @@ struct GeistApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuContent(server: delegate.server, models: delegate.models,
+            MenuContent(server: delegate.server, models: delegate.models, settings: delegate.settings,
                         openLog: { openWindow(id: "log") })
         } label: {
             Image(systemName: delegate.server.isRunning ? "waveform.circle.fill" : "waveform.circle")
@@ -25,10 +25,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor let server = ServerProcess(
         port: Int(ProcessInfo.processInfo.environment["GEIST_PORT"] ?? "") ?? 11434)
     @MainActor let models = ModelStore()
+    @MainActor let settings = Settings()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
-            models.onReady = { [server] url in server.stop(); server.start(model: url) }
+            server.host = settings.host
+            models.onReady = { [server, settings] url in
+                settings.enableLaunchAtLoginOnce()
+                server.stop(); server.start(model: url)
+            }
+            if ProcessInfo.processInfo.environment["GEIST_AUTO_CLI"] != nil { settings.installCLI() } // test hook
             if let m = models.selected {
                 server.start(model: m)
             } else {
@@ -65,6 +71,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct MenuContent: View {
     let server: ServerProcess
     let models: ModelStore
+    let settings: Settings
     let openLog: () -> Void
 
     var body: some View {
@@ -100,10 +107,35 @@ struct MenuContent: View {
         } else if let m = models.selected {
             Button("Start Server") { server.start(model: m) }
         }
+        Divider()
+        Toggle("Start at Login", isOn: Binding(
+            get: { settings.launchAtLogin }, set: { settings.setLaunchAtLogin($0) }))
+        Toggle("Reachable on the Network", isOn: Binding(
+            get: { settings.networkReachable },
+            set: { on in
+                settings.setNetworkReachable(on)
+                server.host = settings.host
+                if server.isRunning || server.state == .starting { server.restart() }
+            }))
+            .help("Listens on 0.0.0.0:11434. There is no authentication.")
+        cliItem
         Button("Show Log") { openLog(); NSApp.activate(ignoringOtherApps: true) }
         Divider()
         Button("Quit Geist") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")
+    }
+
+    @ViewBuilder private var cliItem: some View {
+        switch settings.cli {
+        case .homebrew:
+            Button("Command Line Tool: via Homebrew") {}.disabled(true)
+        case .installed:
+            Button("✓ Command Line Tool Installed") {}.disabled(true)
+        case .stale:
+            Button("Repair Command Line Tool…") { settings.installCLI() }
+        case .none:
+            Button("Install Command Line Tool…") { settings.installCLI() }
+        }
     }
 
     private func label(for m: CuratedModel) -> String {
@@ -119,6 +151,7 @@ struct MenuContent: View {
 
     private func use(_ url: URL) {
         models.select(url)
+        settings.enableLaunchAtLoginOnce()
         server.stop()
         server.start(model: url)
     }
