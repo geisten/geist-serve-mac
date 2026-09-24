@@ -27,6 +27,7 @@ test: build/Geist.app
 	sh tests/bundle_sanity.sh
 	sh tests/server_process.sh
 	sh tests/models.sh
+	sh tests/settings.sh
 
 clean:
 	rm -rf build .build

@@ -21,7 +21,7 @@ final class ServerProcess {
     private(set) var state: State = .stopped
     private(set) var log: [String] = []
     let port: Int
-    let host: String
+    var host: String
 
     private var process: Process?
     private var healthTimer: Timer?
