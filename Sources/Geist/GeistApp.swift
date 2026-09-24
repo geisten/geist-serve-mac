@@ -13,7 +13,7 @@ struct GeistApp: App {
             MenuContent(server: delegate.server, models: delegate.models, settings: delegate.settings,
                         updater: delegate.updater.updater, openLog: { openWindow(id: "log") })
         } label: {
-            Image(systemName: delegate.server.isRunning ? "waveform.circle.fill" : "waveform.circle")
+            MenuBarGlyph()
         }
         Window("geist-serve log", id: "log") { LogView(server: delegate.server) }
             .defaultSize(width: 720, height: 420)
@@ -37,6 +37,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // is a log line instead of a silently dead menu item.
             do { try updater.updater.start() } catch {
                 FileHandle.standardError.write(Data("[geist] sparkle: \(error.localizedDescription)\n".utf8))
+            }
+            if let snap = ProcessInfo.processInfo.environment["GEIST_SNAPSHOT_WELCOME"] {
+                // design/test hook: show the real window, photograph it, quit
+                showWelcome()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [self] in
+                    WelcomeSnapshot.capture(window: welcome, to: snap)
+                    NSApp.terminate(nil)
+                }
+                return
             }
             if ProcessInfo.processInfo.environment["GEIST_UPDATE_PROBE"] != nil {
                 updater.updater.checkForUpdateInformation() // test hook: no UI, delegate logs
@@ -65,8 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor func showWelcome() {
         let w = NSWindow(contentViewController: NSHostingController(
             rootView: WelcomeView(models: models, close: { [weak self] in self?.welcome?.close() })))
-        w.title = "Welcome to Geist"
-        w.styleMask = [.titled, .closable]
+        w.title = "Welcome to Geist" // for the window menu and accessibility; not drawn
+        w.titleVisibility = .hidden
+        w.titlebarAppearsTransparent = true
+        w.styleMask = [.titled, .closable, .fullSizeContentView]
         w.center()
         w.isReleasedWhenClosed = false
         welcome = w
@@ -171,48 +182,99 @@ struct MenuContent: View {
     }
 }
 
-/// First launch: nothing selected. Offer the default with its size, or any
-/// other curated model, or a file.
+/// The menu bar mark: our template glyph from the bundle, the SF symbol
+/// only when running unbundled (swift run).
+struct MenuBarGlyph: View {
+    static let image: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "png"),
+              let img = NSImage(contentsOf: url) else { return nil }
+        img.isTemplate = true
+        img.size = NSSize(width: 18, height: 18)
+        return img
+    }()
+
+    var body: some View {
+        if let img = Self.image { Image(nsImage: img) } else { Image(systemName: "waveform.circle") }
+    }
+}
+
+/// First launch: nothing selected. One decision, set in type: the default
+/// model as a quiet card, everything else a text button. Generous margins,
+/// two type sizes, one accent (the system's), numbers tabular.
 struct WelcomeView: View {
     let models: ModelStore
     let close: () -> Void
     private let def = Models.byID(Models.defaultID)!
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Geist needs a model").font(.title2).bold()
-            Text("Geist runs one local model behind the Ollama and OpenAI APIs on port 11434. "
-                 + "Nothing leaves your Mac. The download comes from Hugging Face and is checksum-verified.")
-                .fixedSize(horizontal: false, vertical: true)
-            GroupBox {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("\(def.name)  ·  \(def.sizeText)  ·  needs \(def.minRAMGB) GB RAM").bold()
-                    Text(def.note).foregroundStyle(.secondary)
-                    if let p = models.progress[def.id] {
-                        ProgressView(value: p).padding(.top, 4)
-                    }
-                }.frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                if let icon = NSApp.applicationIconImage {
+                    Image(nsImage: icon).resizable().frame(width: 44, height: 44).alignmentGuide(.firstTextBaseline) { $0[.bottom] - 8 }
+                }
+                Text("Geist").font(.system(size: 30, weight: .semibold, design: .default)).tracking(-0.5)
             }
-            HStack {
-                Button("Choose GGUF File…") { if models.addCustom() != nil { done() } }
-                Spacer()
-                Menu("Other model") {
-                    ForEach(Models.curated.filter { $0.id != def.id }) { m in
-                        Button("\(m.name)  (\(m.sizeText), \(m.minRAMGB) GB RAM)") { models.download(m) }
-                    }
-                }.fixedSize()
+            .padding(.bottom, 8)
+            Text("One local model behind the Ollama and OpenAI APIs on port 11434.")
+                .font(.system(size: 15)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 28)
+
+            // the recommended model, as a card without a box
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Recommended").font(.system(size: 11, weight: .medium)).tracking(1.2).textCase(.uppercase)
+                    .foregroundStyle(.tertiary)
+                Text(def.name).font(.system(size: 20, weight: .medium))
+                Text("\(def.sizeText)  ·  \(def.minRAMGB) GB RAM  ·  text").font(.system(size: 13).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Text(def.note).font(.system(size: 13)).foregroundStyle(.secondary).padding(.top, 2)
+                    .fixedSize(horizontal: false, vertical: true)
+                if let p = models.progress[def.id] {
+                    ProgressView(value: p).progressViewStyle(.linear).padding(.top, 10)
+                    Text("\(Int(p * 100)) %").font(.system(size: 12).monospacedDigit()).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.bottom, 28)
+
+            HStack(spacing: 18) {
                 Button(models.isDownloading(def) ? "Downloading…" : "Download \(def.name)") { models.download(def) }
+                    .buttonStyle(.borderedProminent).controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     .disabled(models.isDownloading(def))
+                Menu("Other model") {
+                    ForEach(Models.curated.filter { $0.id != def.id }) { m in
+                        Button("\(m.name)  ·  \(m.sizeText)  ·  \(m.minRAMGB) GB RAM") { models.download(m) }
+                    }
+                }.menuStyle(.borderlessButton).fixedSize()
+                Button("Open GGUF file…") { if models.addCustom() != nil { close() } }
+                    .buttonStyle(.plain).foregroundStyle(Color.accentColor)
             }
-            if let e = models.lastError { Text(e).foregroundStyle(.red) }
-        }
-        .padding(20)
-        .frame(width: 520)
-        .onChange(of: models.selected) { _, s in if s != nil { done() } }
-    }
+            .padding(.bottom, 24)
 
-    private func done() { close() }
+            if let e = models.lastError {
+                Text(e).font(.system(size: 12)).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("Downloaded from Hugging Face and checksum-verified. Nothing leaves your Mac.")
+                    .font(.system(size: 12)).foregroundStyle(.tertiary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(EdgeInsets(top: 32, leading: 36, bottom: 28, trailing: 36))
+        .frame(width: 480, alignment: .leading)
+        .onChange(of: models.selected) { _, s in if s != nil { close() } }
+    }
+}
+
+/// Photographs a window as it really renders (ImageRenderer cannot draw
+/// AppKit-backed controls). Design review and tests.
+enum WelcomeSnapshot {
+    @MainActor static func capture(window: NSWindow?, to path: String) {
+        guard let w = window else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        p.arguments = ["-x", "-o", "-l", String(w.windowNumber), path]
+        try? p.run()
+        p.waitUntilExit()
+    }
 }
 
 struct LogView: View {

@@ -6,6 +6,7 @@
     <key>CFBundleDisplayName</key>        <string>Geist</string>
     <key>CFBundleIdentifier</key>         <string>com.geisten.geist</string>
     <key>CFBundleExecutable</key>         <string>Geist</string>
+    <key>CFBundleIconFile</key>          <string>AppIcon</string>
     <key>CFBundlePackageType</key>        <string>APPL</string>
     <key>CFBundleShortVersionString</key> <string>__VERSION__</string>
     <key>CFBundleVersion</key>            <string>__BUILD__</string>

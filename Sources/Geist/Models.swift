@@ -24,7 +24,7 @@ enum Models {
         .init(id: "gemma4-e2b", name: "Gemma 4 E2B", file: "gemma-4-E2B-it-Q4_K_M.gguf",
               url: URL(string: "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf")!,
               bytes: 3_106_738_272, sha256: "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
-              minRAMGB: 8, note: "Google, instruction-tuned. The default: good answers on an 8 GB Mac."),
+              minRAMGB: 8, note: "Google, instruction-tuned. Good answers on an 8 GB Mac."),
         .init(id: "gemma4-e4b", name: "Gemma 4 E4B", file: "gemma-4-E4B-it-Q4_K_M.gguf",
               url: URL(string: "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf")!,
               bytes: 4_977_171_584, sha256: "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
