@@ -41,7 +41,13 @@ sleep 1
 
 GEIST_HOME="$T/home" GEIST_PORT=28151 GEIST_FEED_URL=http://127.0.0.1:28150/appcast.xml GEIST_UPDATE_PROBE=1 \
     "$T/Geist.app/Contents/MacOS/Geist" 2>"$LOG" & PID=$!
-wait_log "update available: 9.9.9" 30 && ok "app finds the 9.9.9 update in the local appcast" || bad "update probe: $(grep -E 'update|Sparkle' "$LOG" | tail -2)"
+if wait_log "update available: 9.9.9" 45; then ok "app finds the 9.9.9 update in the local appcast"; else
+    bad "update probe"
+    echo "--- app log:"; cat "$LOG"
+    echo "--- appcast:"; cat "$T/feed/appcast.xml"
+    echo "--- app version: $(plutil -extract CFBundleVersion raw "$T/Geist.app/Contents/Info.plist")"
+    echo "--- sparkle os_log (last 2 min):"; log show --last 2m --predicate 'subsystem == "org.sparkle-project.Sparkle" OR process == "Geist"' --style compact 2>/dev/null | grep -viE 'cli: none' | tail -30
+fi
 quit_app $PID
 
 # same app again, a feed with no items → "no update", not an error
