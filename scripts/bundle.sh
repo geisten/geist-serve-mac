@@ -10,8 +10,14 @@ BUILD=$(git rev-list --count HEAD 2>/dev/null || echo 0)
 APP=build/Geist.app
 BIN=$(swift build -c release --show-bin-path)
 
+# Icon set: rendered from scripts/icon.swift, cached in build/icon.
+if [ ! -f build/icon/AppIcon.icns ] || [ scripts/icon.swift -nt build/icon/AppIcon.icns ]; then
+    swift scripts/icon.swift build/icon >/dev/null
+fi
+
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp build/icon/AppIcon.icns build/icon/MenuBarIcon.png build/icon/MenuBarIcon@2x.png "$APP/Contents/Resources/"
 cp "$BIN/Geist" "$APP/Contents/MacOS/Geist"
 cp build/geist-serve "$APP/Contents/MacOS/geist-serve"
 # Sparkle.framework from the SwiftPM artifact (binary xcframework).
