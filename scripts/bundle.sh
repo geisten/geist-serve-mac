@@ -14,6 +14,11 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN/Geist" "$APP/Contents/MacOS/Geist"
 cp build/geist-serve "$APP/Contents/MacOS/geist-serve"
+# Sparkle.framework from the SwiftPM artifact (binary xcframework).
+FW=$(find .build/artifacts/sparkle -path '*macos*' -name 'Sparkle.framework' -maxdepth 4 | head -1)
+[ -d "$FW" ] || { echo "bundle: Sparkle.framework not found under .build/artifacts (swift package resolve?)" >&2; exit 1; }
+mkdir -p "$APP/Contents/Frameworks"
+cp -R "$FW" "$APP/Contents/Frameworks/"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 codesign --force --sign - --deep "$APP" >/dev/null 2>&1 || true
