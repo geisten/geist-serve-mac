@@ -13,5 +13,11 @@
     <key>LSUIElement</key>                <true/>
     <key>NSHumanReadableCopyright</key>   <string>Apache-2.0 — geisten</string>
     <key>NSHighResolutionCapable</key>    <true/>
+    <!-- Sparkle 2: appcast next to the GitHub release assets; EdDSA public key
+         (private key = repo secret SPARKLE_PRIVATE_KEY, generated 2026-09-24). -->
+    <key>SUFeedURL</key>                 <string>https://github.com/geisten/geist-serve-mac/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>             <string>iiHp/me0smJVQRc3Hu1qIyIpfUA0QTuvDjgZS8rkM30=</string>
+    <key>SUEnableAutomaticChecks</key>   <true/>
+    <key>SUScheduledCheckInterval</key>  <integer>86400</integer>
 </dict>
 </plist>

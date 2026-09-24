@@ -28,6 +28,7 @@ test: build/Geist.app
 	sh tests/server_process.sh
 	sh tests/models.sh
 	sh tests/settings.sh
+	sh tests/update.sh
 
 clean:
 	rm -rf build .build

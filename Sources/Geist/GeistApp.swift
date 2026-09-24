@@ -1,5 +1,6 @@
 // Geist — the menu bar app around geist-serve.
 import AppKit
+import Sparkle
 import SwiftUI
 
 @main
@@ -10,7 +11,7 @@ struct GeistApp: App {
     var body: some Scene {
         MenuBarExtra {
             MenuContent(server: delegate.server, models: delegate.models, settings: delegate.settings,
-                        openLog: { openWindow(id: "log") })
+                        updater: delegate.updater.updater, openLog: { openWindow(id: "log") })
         } label: {
             Image(systemName: delegate.server.isRunning ? "waveform.circle.fill" : "waveform.circle")
         }
@@ -26,9 +27,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         port: Int(ProcessInfo.processInfo.environment["GEIST_PORT"] ?? "") ?? 11434)
     @MainActor let models = ModelStore()
     @MainActor let settings = Settings()
+    /// Sparkle: automatic daily check, "Check for Updates…" in the menu.
+    @MainActor let updater = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: UpdaterDelegate.shared,
+                                                          userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
+            // Started explicitly so a refusal (unsigned bundle, odd location)
+            // is a log line instead of a silently dead menu item.
+            do { try updater.updater.start() } catch {
+                FileHandle.standardError.write(Data("[geist] sparkle: \(error.localizedDescription)\n".utf8))
+            }
+            if ProcessInfo.processInfo.environment["GEIST_UPDATE_PROBE"] != nil {
+                updater.updater.checkForUpdateInformation() // test hook: no UI, delegate logs
+            }
             server.host = settings.host
             models.onReady = { [server, settings] url in
                 settings.enableLaunchAtLoginOnce()
@@ -72,6 +84,7 @@ struct MenuContent: View {
     let server: ServerProcess
     let models: ModelStore
     let settings: Settings
+    let updater: SPUUpdater
     let openLog: () -> Void
 
     var body: some View {
@@ -119,6 +132,7 @@ struct MenuContent: View {
             }))
             .help("Listens on 0.0.0.0:11434. There is no authentication.")
         cliItem
+        Button("Check for Updates…") { updater.checkForUpdates() }
         Button("Show Log") { openLog(); NSApp.activate(ignoringOtherApps: true) }
         Divider()
         Button("Quit Geist") { NSApplication.shared.terminate(nil) }
@@ -217,5 +231,27 @@ struct LogView: View {
             }
             .onChange(of: server.log.count) { _, n in if n > 0 { proxy.scrollTo(n - 1) } }
         }
+    }
+}
+
+/// Feed URL override for tests (a local appcast) and a log line when a
+/// probe finds an update, so tests/update.sh can see Sparkle work.
+final class UpdaterDelegate: NSObject, SPUUpdaterDelegate {
+    static let shared = UpdaterDelegate()
+
+    func feedURLString(for updater: SPUUpdater) -> String? {
+        ProcessInfo.processInfo.environment["GEIST_FEED_URL"]
+    }
+
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        FileHandle.standardError.write(Data("[geist] update available: \(item.displayVersionString)\n".utf8))
+    }
+
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        FileHandle.standardError.write(Data("[geist] no update: \(error.localizedDescription)\n".utf8))
+    }
+
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        FileHandle.standardError.write(Data("[geist] update check failed: \(error.localizedDescription)\n".utf8))
     }
 }
