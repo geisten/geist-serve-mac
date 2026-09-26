@@ -15,11 +15,11 @@ if [ -z "$runtime_dir" ]; then
     runtime_dir=$source_dir
 fi
 mkdir -p build
-for binary in geist-app geistd; do
+for binary in geist geist-app geistd; do
     [ -x "$runtime_dir/$binary" ] || { echo "Missing runtime: $runtime_dir/$binary" >&2; exit 1; }
     if otool -L "$runtime_dir/$binary" | grep -q '/opt/homebrew\|/usr/local/'; then
         echo "Runtime depends on a developer installation: $binary" >&2; exit 1
     fi
     cp "$runtime_dir/$binary" "build/$binary"
 done
-shasum -a 256 build/geist-app build/geistd > build/RUNTIME-SHA256SUMS
+shasum -a 256 build/geist build/geist-app build/geistd > build/RUNTIME-SHA256SUMS

@@ -16,16 +16,17 @@ permissions:
   contents: read
 jobs:
   shell:
+    timeout-minutes: 20
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: compile native shell
         run: swift build -c release
   integration:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: require an immutable runtime revision
         id: runtime
         env:
@@ -35,7 +36,7 @@ jobs:
           revision=${RUNTIME_REF:-$(cat geist-serve.ref)}
           [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: geisten/geist-serve
           ref: ${{ steps.runtime.outputs.revision }}
@@ -45,7 +46,7 @@ jobs:
           brew install libomp
           make test RUNTIME_DIR=runtime
           make dmg RUNTIME_DIR=runtime
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: local-review-dmg
           path: build/Geist-*-arm64.dmg

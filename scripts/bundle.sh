@@ -21,6 +21,7 @@ cp build/icon/AppIcon.icns build/icon/MenuBarIcon.png build/icon/MenuBarIcon@2x.
 cp "$BIN/Geist" "$APP/Contents/MacOS/Geist"
 cp build/geistd "$APP/Contents/MacOS/geistd"
 cp build/geist-app "$APP/Contents/MacOS/geist-app"
+cp build/geist "$APP/Contents/MacOS/geist-cli"
 # Preserve source-binary provenance separately: signing changes Mach-O bytes.
 cp build/RUNTIME-SHA256SUMS "$APP/Contents/Resources/RUNTIME-SOURCE-SHA256SUMS"
 # Sparkle.framework from the SwiftPM artifact (binary xcframework).

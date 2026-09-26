@@ -8,6 +8,8 @@ ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fail=1; }
 [ -x "$APP/Contents/MacOS/Geist" ] && ok "app executable" || bad "app executable"
 [ -x "$APP/Contents/MacOS/geistd" ] && ok "geistd bundled" || bad "geistd bundled"
 [ -x "$APP/Contents/MacOS/geist-app" ] && ok "C23 app bundled" || bad "C23 app bundled"
+[ -x "$APP/Contents/MacOS/geist-cli" ] && ok "C23 CLI bundled separately from native Geist" || bad "CLI missing"
+! otool -L "$APP/Contents/MacOS/geist-cli" | grep -q homebrew && ok "CLI has no Homebrew deps" || bad "CLI links Homebrew"
 ! otool -L "$APP/Contents/MacOS/geist-app" | grep -q homebrew && ok "app has no Homebrew deps" || bad "app links Homebrew"
 "$APP/Contents/MacOS/geistd" >/dev/null 2>&1 || [ $? -eq 2 ] && ok "server runs (usage exit 2)" || bad "server runs"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null && ok "Info.plist valid" || bad "Info.plist"

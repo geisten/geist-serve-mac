@@ -1,9 +1,10 @@
 # Geist for macOS
 
-**Runs here. Stays here.** A menu bar launcher for a local text workspace.
-Download a suggested model once, then try rewriting, summarizing and ideas
-on your Mac. No account, no saved prompt history, and no prompts sent to a
-cloud service.
+**Runs here. Stays here.** A menu bar launcher for a shared local model service.
+Download a suggested model once, then connect the terminal, Continue in VS Code
+or OpenCode through the same geistd. The current gateway supports text chat;
+agent tools are explicitly unsupported. Geist sends no prompts to a cloud
+service; connected editors have their own storage and telemetry settings.
 
 Apple Silicon, macOS 14+. This is a development preview. Local builds are
 ad-hoc signed; public distribution needs Developer ID signing and
@@ -18,9 +19,11 @@ interface is shared with the Raspberry Pi package. The inference engine
 geistlib remains unchanged.
 
 This repository contains only the native shell: menu bar, opening the local
-browser, Start at Login, manual update checking and stopping its own child
-runtime when the app quits. Model policy is not duplicated in Swift.
-The app does not stop Ollama or install a global command-line tool.
+browser, Start at Login and manual update checking. Closing the menu app leaves
+the shared service running for other clients. Use Stop model service to stop
+it explicitly. Sparkle stops the service before installing an update.
+Model policy is not duplicated in Swift. The bundled terminal client lives at
+`Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
 The first screen shows RAM, compute cores and free disk space, then
 recommended, conditional or unavailable models with reasons. Completed local
@@ -46,14 +49,16 @@ make run RUNTIME_DIR=../geist-serve
 The build produces `build/Geist.app` and `build/Geist-0.0.0-dev-arm64.dmg`.
 It builds the C23 runtime and the pinned inference engine with static
 OpenMP, and rejects Homebrew runtime-library dependencies. The downloaded
-model is not included. A verified prebuilt pair can instead be supplied in
-`GEIST_RUNTIME_BIN_DIR`; it must contain executable `geist-app` and
-`geistd` files for Apple Silicon.
+model is not included. A verified prebuilt runtime can instead be supplied in
+`GEIST_RUNTIME_BIN_DIR`; it must contain executable `geist`, `geist-app` and
+`geistd` files for Apple Silicon. The bundle renames `geist` to `geist-cli` to
+avoid colliding with `Geist` on case-insensitive filesystems.
 
 SwiftPM resolves Sparkle using Package.resolved. Automatic update checks are
 off; the menu retains manual checks against the configured release feed.
 The native runtime test uses an isolated temporary data directory and asks
-only its own instance to quit. It does not close another installed copy.
+its own menu instances to quit and reattach, verifies that the same service
+survives, then explicitly stops that isolated test service.
 
 The two-repository integration requires the C23 runtime change first.
 CI compiles the Swift shell and builds/tests the pair on each pull request.

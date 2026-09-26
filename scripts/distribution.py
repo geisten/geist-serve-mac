@@ -20,7 +20,7 @@ def digest(path):
 def targets(app):
     fw = app / 'Contents/Frameworks/Sparkle.framework'
     version = fw / 'Versions/B'
-    return [app / 'Contents/MacOS/geist-app', app / 'Contents/MacOS/geistd',
+    return [app / 'Contents/MacOS/geist-cli', app / 'Contents/MacOS/geist-app', app / 'Contents/MacOS/geistd',
             version / 'Autoupdate', version / 'Updater.app',
             version / 'XPCServices/Downloader.xpc', version / 'XPCServices/Installer.xpc',
             fw, app]
@@ -40,10 +40,10 @@ def sign(app, identity, keychain=None):
             raise ValueError('Developer ID Application identity with private key not available')
     for path in paths:
         if path == app:
-            # Only the two final signed payloads, before sealing the outer bundle.
+            # Hash all final signed payloads before sealing the outer bundle.
             content = app / 'Contents'
             manifest = ''.join(digest(content / name)
-                               + '  ' + name + '\n' for name in ('MacOS/geist-app', 'MacOS/geistd'))
+                               + '  ' + name + '\n' for name in ('MacOS/geist-cli', 'MacOS/geist-app', 'MacOS/geistd'))
             (content / 'Resources/RUNTIME-SHA256SUMS').write_text(manifest)
         # Ad-hoc code has no Team ID, so hardened library validation cannot
         # authenticate its bundled Sparkle. Distribution always uses both.

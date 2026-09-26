@@ -24,16 +24,21 @@ struct GeistApp: App {
             Button("Show Data Folder") { NSWorkspace.shared.open(delegate.runtime.dataFolder) }
             Button("Check for Updates…") { delegate.updater.updater.checkForUpdates() }
             Divider()
-            Button("Quit Geist") { NSApp.terminate(nil) }.keyboardShortcut("q")
+            Button("Stop model service") { delegate.runtime.stop() }
+            Button("Quit menu bar") { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     @MainActor let runtime = ApplicationProcess()
     @MainActor let settings = Settings()
-    @MainActor let updater = SPUStandardUpdaterController(
-        startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
+    @MainActor lazy var updater = SPUStandardUpdaterController(
+        startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        ApplicationProcess.stopForUpdate()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
@@ -50,7 +55,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        MainActor.assumeIsolated { runtime.stop() }
         return .terminateNow
     }
 }
@@ -61,9 +65,7 @@ final class ApplicationProcess {
     private(set) var url: URL?
     private(set) var status = "Starting…"
     private(set) var running = false
-    private var process: Process?
-    private var stdout = ""
-    private var stopping = false
+    private var working = false
 
     var dataFolder: URL {
         if let path = ProcessInfo.processInfo.environment["GEIST_HOME"] {
@@ -73,61 +75,46 @@ final class ApplicationProcess {
             .appendingPathComponent("Geist", isDirectory: true)
     }
 
-    func start() {
-        guard process == nil else { open(); return }
-        url = nil; stdout = ""; status = "Starting…"; stopping = false
+    // The CLI owns discovery/authentication. No native shell loads a second model.
+    nonisolated private static func service(_ arguments: [String]) -> (Int32, Data) {
         let child = Process()
-        let directory = Bundle.main.executableURL!.deletingLastPathComponent()
-        child.executableURL = directory.appendingPathComponent("geist-app")
-        child.arguments = ["--port", "0", "--home", dataFolder.path,
-                           "--daemon", directory.appendingPathComponent("geistd").path]
-        // Explicit developer fixture; the C23 application owns validation/loading.
-        if let model = ProcessInfo.processInfo.environment["GEIST_MODEL"] {
-            child.arguments! += ["--model", model]
-        }
-        let output = Pipe(), errors = Pipe()
-        child.standardOutput = output; child.standardError = errors
-        output.fileHandleForReading.readabilityHandler = { [weak self] handle in
-            let data = handle.availableData
-            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
-            Task { @MainActor in self?.read(text) }
-        }
-        errors.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if !data.isEmpty { FileHandle.standardError.write(data) }
-        }
-        child.terminationHandler = { [weak self] child in
-            Task { @MainActor in
-                guard let self, self.process === child else { return }
-                self.running = false; self.process = nil; self.url = nil
-                if !self.stopping && child.terminationStatus != 0 {
-                    self.status = "Stopped (exit \(child.terminationStatus))"
-                    let alert = NSAlert()
-                    alert.messageText = "Geist could not keep running"
-                    alert.informativeText = "Another copy may already be running. Quit it and try again. The data folder contains server.log for model errors."
-                    if ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil { alert.runModal() }
-                } else { self.status = "Stopped" }
-            }
-        }
+        child.executableURL = Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("geist-cli")
+        child.arguments = arguments
+        let output = Pipe()
+        child.standardOutput = output
+        child.standardError = FileHandle.nullDevice
         do {
-            try child.run(); process = child; running = true
-        } catch {
-            status = "Could not start: \(error.localizedDescription)"
-        }
+            try child.run()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            child.waitUntilExit()
+            return (child.terminationStatus, data)
+        } catch { return (-1, Data()) }
     }
 
-    private func read(_ text: String) {
-        guard url == nil else { return }
-        stdout += text
-        guard stdout.utf8.count <= 8192 else { status = "Invalid launcher response"; stop(); return }
-        while let newline = stdout.firstIndex(of: "\n") {
-            let line = String(stdout[..<newline]); stdout.removeSubrange(...newline)
-            guard line.hasPrefix("GEIST_APP_URL="),
-                  let link = URL(string: String(line.dropFirst("GEIST_APP_URL=".count))),
-                  link.scheme == "http", link.host == "127.0.0.1", link.port != nil,
-                  link.fragment?.count == 64 else { continue }
-            url = link; status = "Runs here. Stays here."
-            if ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil { open() }
+    nonisolated static func stopForUpdate() { _ = service(["stop"]) }
+
+    func start() {
+        guard !working else { return }
+        working = true
+        status = "Starting local service…"
+        Task {
+            let result = await Task.detached { Self.service(["start"]) }.value
+            if result.0 == 0 {
+                let connection = await Task.detached { Self.service(["connection"]) }.value
+                if connection.0 == 0,
+                   let data = try? JSONSerialization.jsonObject(with: connection.1) as? [String: Any],
+                   let base = data["base_url"] as? String,
+                   let key = data["api_key"] as? String,
+                   key.count == 64,
+                   let endpoint = URL(string: base), endpoint.host == "127.0.0.1",
+                   let port = endpoint.port {
+                    url = URL(string: "http://127.0.0.1:\(port)/#\(key)")
+                    running = true
+                    status = "Local service running"
+                    if ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil { open() }
+                } else { status = "Cannot read service connection" }
+            } else { status = "Service unavailable — check port 8766" }
+            working = false
             if ProcessInfo.processInfo.environment["GEIST_TEST_QUIT"] == "1" {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { NSApp.terminate(nil) }
             }
@@ -137,18 +124,13 @@ final class ApplicationProcess {
     func open() { if let url { NSWorkspace.shared.open(url) } }
 
     func stop() {
-        stopping = true
-        guard let child = process else { return }
-        if child.isRunning { child.terminate() }
-        let deadline = Date().addingTimeInterval(15)
-        while child.isRunning && Date() < deadline {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        guard !working else { return }
+        working = true
+        Task {
+            let result = await Task.detached { Self.service(["stop"]) }.value
+            if result.0 == 0 { running = false; url = nil; status = "Local service stopped" }
+            else { status = "Could not stop service" }
+            working = false
         }
-        // C23 cleanup is bounded. Do not kill an unrelated process by name.
-        if child.isRunning {
-            let pid = child.processIdentifier
-            kill(getpgid(pid) == pid ? -pid : pid, SIGKILL)
-        }
-        process = nil; running = false; url = nil
     }
 }
