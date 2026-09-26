@@ -1,7 +1,7 @@
 #!/bin/sh
 # bundle.sh — assemble build/Geist.app from the swift build product, the
 # Info.plist template and the matching geistd binary. Signing and
-# notarization are release.yml's job (#6); this bundle is ad-hoc signed so
+# notarization are notarize.yml's job (#6); this bundle is ad-hoc signed so
 # it runs locally.
 set -eu
 cd "$(dirname "$0")/.."
@@ -30,9 +30,5 @@ mkdir -p "$APP/Contents/Frameworks"
 cp -R "$FW" "$APP/Contents/Frameworks/"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Resources/Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
-codesign --force --sign - --deep "$APP"
-# Hash the signed payload, then reseal only the outer bundle so these hashes
-# remain valid. A second deep signing operation could change nested binaries.
-(cd "$APP/Contents" && shasum -a 256 MacOS/geist-app MacOS/geistd > Resources/RUNTIME-SHA256SUMS)
-codesign --force --sign - "$APP"
+python3 scripts/distribution.py sign --app "$APP" --identity -
 echo "built $APP ($VERSION, build $BUILD)"

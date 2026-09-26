@@ -23,7 +23,9 @@ with tempfile.TemporaryDirectory(prefix="geist-mac-") as home:
                 if process.poll() is not None:
                     break
                 time.sleep(.1)
-            assert child, "native shell did not launch the C23 application"
+            if not child:
+                log.seek(0)
+                raise AssertionError("native shell did not launch the C23 application: " + log.read().decode(errors='replace'))
             # The explicit hook asks this app instance to quit through AppKit;
             # it never sends an event to another installed Geist instance.
             process.wait(timeout=20)
