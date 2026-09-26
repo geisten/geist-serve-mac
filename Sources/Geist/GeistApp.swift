@@ -11,6 +11,7 @@ struct GeistApp: App {
     var body: some Scene {
         MenuBarExtra("Geist", systemImage: "waveform.circle") {
             Text(delegate.runtime.status)
+                .onAppear { delegate.runtime.refresh() }
             Button("Open Geist") { delegate.runtime.open() }
                 .disabled(delegate.runtime.url == nil)
                 .keyboardShortcut("o")
@@ -122,6 +123,21 @@ final class ApplicationProcess {
     }
 
     func open() { if let url { NSWorkspace.shared.open(url) } }
+
+    // Another client may stop the shared service while the menu remains open.
+    func refresh() {
+        guard !working else { return }
+        working = true
+        Task {
+            let result = await Task.detached { Self.service(["status"]) }.value
+            if result.0 != 0 {
+                running = false
+                url = nil
+                status = "Local service stopped"
+            }
+            working = false
+        }
+    }
 
     func stop() {
         guard !working else { return }
