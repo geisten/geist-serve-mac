@@ -21,7 +21,9 @@ geistlib remains unchanged.
 This repository contains only the native shell: menu bar, opening the local
 browser, Start at Login and manual update checking. Closing the menu app leaves
 the shared service running for other clients. Use Stop model service to stop
-it explicitly. Sparkle stops the service before installing an update.
+it explicitly. Sparkle waits for the service to stop before installing an update.
+If stopping fails, installation is cancelled and the menu explains the failure.
+The stop runs off the UI thread; a cancelled update cannot resume an old installer.
 Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 

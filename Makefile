@@ -25,6 +25,7 @@ run: build/Geist.app
 	open build/Geist.app
 
 test: build/Geist.app
+	swift test
 	python3 tests/distribution_test.py
 	sh tests/bundle_sanity.sh
 	python3 tests/runtime.py

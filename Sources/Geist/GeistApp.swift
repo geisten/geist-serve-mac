@@ -34,11 +34,31 @@ struct GeistApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     @MainActor let runtime = ApplicationProcess()
     @MainActor let settings = Settings()
+    @MainActor let updateShutdown = UpdateShutdown()
     @MainActor lazy var updater = SPUStandardUpdaterController(
         startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
 
-    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
-        ApplicationProcess.stopForUpdate()
+    func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool {
+        MainActor.assumeIsolated { updateShutdown.mayInstall }
+    }
+
+    func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+                 untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+        MainActor.assumeIsolated {
+            runtime.updateStopping()
+            updateShutdown.prepare(stop: { ApplicationProcess.stopForUpdate() }) { stopped in
+                if !stopped { self.runtime.updateStopFailed() }
+                // Sparkle rechecks updaterShouldRelaunchApplication before
+                // resuming. Calling it after failure causes a clean abort.
+                installHandler()
+            }
+        }
+        return true
+    }
+
+    func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck,
+                 error: Error?) {
+        MainActor.assumeIsolated { updateShutdown.reset() }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -56,7 +76,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        return .terminateNow
+        // Quitting during a postponed update must not let Sparkle's helper
+        // replace the bundle before the shared service has stopped.
+        MainActor.assumeIsolated {
+            updateShutdown.mayInstall ? .terminateNow : .terminateCancel
+        }
     }
 }
 
@@ -92,7 +116,15 @@ final class ApplicationProcess {
         } catch { return (-1, Data()) }
     }
 
-    nonisolated static func stopForUpdate() { _ = service(["stop"]) }
+    nonisolated static func stopForUpdate() -> Bool { service(["stop"]).0 == 0 }
+
+    func updateStopFailed() {
+        status = "Update cancelled — could not stop the model service. Try Stop model service first."
+    }
+
+    func updateStopping() {
+        status = "Stopping model service before installing the update…"
+    }
 
     func start() {
         guard !working else { return }
