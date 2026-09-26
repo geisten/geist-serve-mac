@@ -6,18 +6,19 @@
 #> make clean
 
 VERSION ?= 0.0.0-dev
+RUNTIME_DIR ?= ../geist-serve
 
-.PHONY: all run test clean help
+.PHONY: all run test clean help runtime dmg
 all: build/Geist.app
 
 help:
 	@grep "^#>" Makefile | cut -c4-
 
-build/geist-serve: scripts/fetch-server.sh
-	sh scripts/fetch-server.sh $@
+runtime:
+	sh scripts/prepare-runtime.sh "$(RUNTIME_DIR)"
 
-build/Geist.app: build/geist-serve Package.swift $(wildcard Sources/Geist/*.swift) Resources/Info.plist scripts/bundle.sh
-	swift build -c release 2>&1 | grep -vE '^(Building|Build complete|\[)' || true
+build/Geist.app: runtime Package.swift $(wildcard Sources/Geist/*.swift) Resources/Info.plist scripts/bundle.sh
+	swift build -c release
 	VERSION=$(VERSION) sh scripts/bundle.sh
 
 run: build/Geist.app
@@ -25,10 +26,10 @@ run: build/Geist.app
 
 test: build/Geist.app
 	sh tests/bundle_sanity.sh
-	sh tests/server_process.sh
-	sh tests/models.sh
-	sh tests/settings.sh
-	sh tests/update.sh
+	python3 tests/runtime.py
+
+dmg: build/Geist.app
+	VERSION=$(VERSION) sh scripts/dmg.sh
 
 clean:
 	rm -rf build .build

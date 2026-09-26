@@ -4,15 +4,48 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      runtime_ref:
+        description: Optional full runtime commit SHA; defaults to geist-serve.ref
+        required: false
+        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
-  build:
+  shell:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: build (unsigned, ad-hoc)
-        run: make
-      - name: bundle sanity
-        run: make test
+      - name: compile native shell
+        run: swift build -c release
+  integration:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: require an immutable runtime revision
+        id: runtime
+        env:
+          RUNTIME_REF: ${{ inputs.runtime_ref }}
+        shell: bash
+        run: |
+          revision=${RUNTIME_REF:-$(cat geist-serve.ref)}
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: geisten/geist-serve
+          ref: ${{ steps.runtime.outputs.revision }}
+          path: runtime
+      - name: build and test the app pair
+        run: |
+          brew install libomp
+          make test RUNTIME_DIR=runtime
+          make dmg RUNTIME_DIR=runtime
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-review-dmg
+          path: build/Geist-*-arm64.dmg
