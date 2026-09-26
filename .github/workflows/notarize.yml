@@ -1,0 +1,89 @@
+name: notarize
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Numeric test version (does not publish a release)
+        required: true
+        default: '0.1.0'
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: notarization
+  cancel-in-progress: false
+jobs:
+  notarize:
+    runs-on: macos-15
+    environment: notarization
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Read pinned runtime
+        id: runtime
+        run: |
+          revision=$(cat geist-serve.ref)
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: geisten/geist-serve
+          ref: ${{ steps.runtime.outputs.revision }}
+          path: runtime
+      - name: Build and test without credentials
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python3 -c 'import os,re; assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",os.environ["VERSION"])'
+          brew install libomp
+          make test RUNTIME_DIR=runtime
+      - name: Sign and notarize
+        env:
+          VERSION: ${{ inputs.version }}
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_API_KEY: ${{ secrets.APPSTORE_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          for name in MACOS_CERT_P12 MACOS_CERT_PASSWORD APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_API_KEY; do
+            [[ -n "${!name}" ]] || { echo "Required secret missing: $name" >&2; exit 1; }
+          done
+          credentials=$(mktemp -d "$RUNNER_TEMP/geist-signing.XXXXXX")
+          export SIGNING_KEYCHAIN="$credentials/signing.keychain-db"
+          cleanup() { security delete-keychain "$SIGNING_KEYCHAIN" >/dev/null 2>&1 || true; rm -rf "$credentials"; }
+          trap cleanup EXIT
+          keychain_password=$(openssl rand -hex 32)
+          echo "::add-mask::$keychain_password"
+          printf '%s' "$MACOS_CERT_P12" | base64 --decode > "$credentials/certificate.p12"
+          printf '%s' "$APPSTORE_API_KEY" | base64 --decode > "$credentials/AuthKey.p8"
+          security create-keychain -p "$keychain_password" "$SIGNING_KEYCHAIN"
+          security set-keychain-settings -lut 7200 "$SIGNING_KEYCHAIN"
+          security unlock-keychain -p "$keychain_password" "$SIGNING_KEYCHAIN"
+          security import "$credentials/certificate.p12" -k "$SIGNING_KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$SIGNING_KEYCHAIN" >/dev/null
+          SIGNING_IDENTITY=$(security find-identity -v -p codesigning "$SIGNING_KEYCHAIN" | awk '/Developer ID Application:/ {print $2}')
+          [[ "$SIGNING_IDENTITY" =~ ^[0-9A-Fa-f]{40}$ ]] || { echo 'Expected exactly one Developer ID Application identity' >&2; exit 1; }
+          export SIGNING_IDENTITY NOTARY_PROFILE=geist-ci
+          xcrun notarytool store-credentials "$NOTARY_PROFILE" --key "$credentials/AuthKey.p8" --key-id "$APPSTORE_KEY_ID" --issuer "$APPSTORE_ISSUER_ID" --keychain "$SIGNING_KEYCHAIN"
+          sh scripts/notarize.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: notarized-test-dmg
+          path: |
+            build/Geist-*-arm64.dmg
+            build/Geist-*-arm64.dmg.sha256
+            build/notary/**/submission.json
+            build/notary/**/apple-log.json
+            build/notary/**/submission-stderr.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: notarization-diagnostics
+          path: |
+            build/notary/**/submission.json
+            build/notary/**/apple-log.json
+            build/notary/**/submission-stderr.txt

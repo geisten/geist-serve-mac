@@ -4,15 +4,56 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      runtime_ref:
+        description: Optional full runtime commit SHA; defaults to geist-serve.ref
+        required: false
+        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
 jobs:
-  build:
+  shell:
+    timeout-minutes: 20
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
-      - name: build (unsigned, ad-hoc)
-        run: make
-      - name: bundle sanity
-        run: make test
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: compile native shell
+        run: swift build -c release
+  integration:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: require an immutable runtime revision
+        id: runtime
+        env:
+          RUNTIME_REF: ${{ inputs.runtime_ref }}
+        shell: bash
+        run: |
+          revision=${RUNTIME_REF:-$(cat geist-serve.ref)}
+          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: geisten/geist-serve
+          ref: ${{ steps.runtime.outputs.revision }}
+          path: runtime
+      - name: cache reference model
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf
+          key: geist-model-smollm2-360m-q8-48ab3034d0dd
+      - name: build and test the app pair
+        run: |
+          brew install libomp
+          make -C runtime fetch-model
+          export GEIST_TEST_MODEL="$PWD/runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf"
+          make test RUNTIME_DIR=runtime
+          make test-dmg RUNTIME_DIR=runtime
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: local-review-dmg
+          path: build/Geist-*-arm64.dmg
