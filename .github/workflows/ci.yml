@@ -41,9 +41,16 @@ jobs:
           repository: geisten/geist-serve
           ref: ${{ steps.runtime.outputs.revision }}
           path: runtime
+      - name: cache reference model
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf
+          key: geist-model-smollm2-360m-q8-48ab3034d0dd
       - name: build and test the app pair
         run: |
           brew install libomp
+          make -C runtime fetch-model
+          export GEIST_TEST_MODEL="$PWD/runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf"
           make test RUNTIME_DIR=runtime
           make test-dmg RUNTIME_DIR=runtime
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
