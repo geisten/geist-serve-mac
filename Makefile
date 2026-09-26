@@ -8,7 +8,7 @@
 VERSION ?= 0.0.0-dev
 RUNTIME_DIR ?= ../geist-serve
 
-.PHONY: all run test clean help runtime dmg
+.PHONY: all run test test-dmg clean help runtime dmg
 all: build/Geist.app
 
 help:
@@ -31,6 +31,9 @@ test: build/Geist.app
 
 dmg: build/Geist.app
 	VERSION=$(VERSION) sh scripts/dmg.sh
+
+test-dmg: dmg
+	VERSION=$(VERSION) python3 tests/dmg_install.py
 
 clean:
 	rm -rf build .build
