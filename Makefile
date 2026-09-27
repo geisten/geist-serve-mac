@@ -25,7 +25,7 @@ run: build/Geist.app
 	open build/Geist.app
 
 test: build/Geist.app
-	GEIST_DESKTOP_RUNTIME="$(CURDIR)/build" swift test
+	GEIST_DESKTOP_RUNTIME="$(CURDIR)/build" GEIST_CHAT_TEST_SCRIPT="$(abspath $(RUNTIME_DIR))/tests/desktop/chat_checks.js" swift test
 	python3 tests/distribution_test.py
 	sh tests/bundle_sanity.sh
 	python3 tests/runtime.py

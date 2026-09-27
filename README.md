@@ -31,10 +31,11 @@ Model policy is not duplicated in Swift. The bundled terminal client lives at
 
 The first screen offers one platform-checked model and **Set up and start**,
 with a concise preview notice. A smaller fallback is considered by the shared
-service. Once ready, type directly or choose Rewrite, Summarize or Ideas without
-switching models. Customize contains model overrides, language settings,
+service. Once ready, press Enter to send or Shift + Enter for a new line. Follow-up
+questions use this window’s conversation. Tips offers examples without mode switches. Customize contains model overrides, language settings,
 hardware information, measurements and service controls. Explicit model choices,
-answer language and per-model preview consent survive reopening; prompts do not.
+answer language and per-model preview consent persist. Conversation lives only in
+page memory and is cleared by New chat, reloading or quitting.
 Hardware suitability does not establish answer quality.
 
 See the shared [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md)
@@ -61,8 +62,7 @@ model is not included. A verified prebuilt runtime can instead be supplied in
 `geistd` files for Apple Silicon. The bundle renames `geist` to `geist-cli` to
 avoid colliding with `Geist` on case-insensitive filesystems.
 
-SwiftPM resolves Sparkle using Package.resolved. Automatic update checks are
-off; the menu retains manual checks against the configured release feed.
+SwiftPM resolves Sparkle using Package.resolved. Automatic update checks run daily; the menu also offers manual checks against the configured release feed.
 The native runtime test uses an isolated temporary data directory and asks
 its own app instances to quit and reattach, verifies that the same service
 survives, then explicitly stops that isolated test service.
