@@ -157,7 +157,7 @@ final class DesktopWebViewTests: XCTestCase {
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
-            for target in ["document.querySelector('#chat-help summary')", "document.getElementById('run')"] {
+            for target in ["document.querySelector('#chat-help summary')", "document.getElementById('run')", "document.querySelector('#performance summary')"] {
                 let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
                     windowNumber: desktop.window!.windowNumber, context: nil, characters: "\t",
                     charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
@@ -182,12 +182,19 @@ final class DesktopWebViewTests: XCTestCase {
             let zoomError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(zoomError as? String, "", "Minimum window and enlarged text remain usable")
             try await snapshot(desktop.webView, name: "ready-minimum-zoom.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; true")
+            try await snapshot(desktop.webView, name: "performance-minimum-zoom.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; true")
             desktop.webView.pageZoom = 1
             desktop.window?.setContentSize(NSSize(width: 540, height: 600))
             try await snapshot(desktop.webView, name: "ready-narrow.png")
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Say hello in one short sentence.'; document.getElementById('task-form').requestSubmit(); true")
             try await waitFor(desktop.webView, "document.getElementById('output').textContent.length > 0 && controller === null", timeout: 900)
             try await snapshot(desktop.webView, name: "real-response.png")
+            try await waitFor(desktop.webView, "lastReply?.tokens > 0 && lastReply?.rate > 0 && state?.resources?.rss_bytes > 0")
+            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; true")
+            try await snapshot(desktop.webView, name: "performance-real-model.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; true")
             let realTokens = try await evaluate(desktop.webView, "document.getElementById('speed').textContent")
             XCTAssertFalse((realTokens as? String ?? "—").contains("—"), "A real response must include final generation metrics")
             try await waitFor(desktop.webView, "!document.getElementById('test-connection').disabled")

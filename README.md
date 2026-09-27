@@ -121,3 +121,14 @@ the notarized release and signed appcast; local ad-hoc DMGs do not satisfy that
 gate. The default window is at most 780 × 620 points and scales down on smaller
 screens. Download speed and remaining time are estimates from recent bytes
 received in the current window, not throughput guarantees.
+
+### Chat performance
+
+The chat footer shows tokens/s for the last completed reply and the current
+resident RAM of the shared model process. **System & performance** opens the
+machine/OS, logical CPUs, available RAM, normalized process CPU load, output
+count and reply timings. The expandable panel supports keyboard scrolling and
+small windows. Missing measurements remain unknown; stopped replies have no
+final speed. See the pinned runtime’s `docs/INSTALL.md` for exact definitions.
+The reading surface uses cream white and graphite; petrol identifies actions,
+keyboard focus and measurements, while green remains a ready-state indicator.
