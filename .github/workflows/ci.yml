@@ -20,6 +20,8 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: compile native shell
         run: swift build -c release
   integration:
@@ -27,6 +29,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       - name: require an immutable runtime revision
         id: runtime
         env:
@@ -38,6 +42,7 @@ jobs:
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           repository: geisten/geist-serve
           ref: ${{ steps.runtime.outputs.revision }}
           path: runtime
@@ -51,9 +56,12 @@ jobs:
           brew install libomp
           make -C runtime fetch-model
           export GEIST_TEST_MODEL="$PWD/runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf"
+          export GEIST_DESKTOP_EVIDENCE="$PWD/build/desktop-evidence"
           make test RUNTIME_DIR=runtime
           make test-dmg RUNTIME_DIR=runtime
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: local-review-dmg
-          path: build/Geist-*-arm64.dmg
+          path: |
+            build/Geist-*-arm64.dmg
+            build/desktop-evidence/*.png

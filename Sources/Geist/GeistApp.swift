@@ -12,21 +12,21 @@ struct GeistApp: App {
         MenuBarExtra("Geist", systemImage: "waveform.circle") {
             Text(delegate.runtime.status)
                 .onAppear { delegate.runtime.refresh() }
-            Button("Open Geist") { delegate.runtime.open() }
-                .disabled(delegate.runtime.url == nil)
+            Button(desktopText("Open Geist")) { delegate.runtime.open() }
+
                 .keyboardShortcut("o")
             if !delegate.runtime.running {
-                Button("Start Geist") { delegate.runtime.start() }
+                Button(desktopText("Start Geist")) { delegate.runtime.start() }
             }
             Divider()
-            Toggle("Start at Login", isOn: Binding(
+            Toggle(desktopText("Start at Login"), isOn: Binding(
                 get: { delegate.settings.launchAtLogin },
                 set: { delegate.settings.setLaunchAtLogin($0) }))
-            Button("Show Data Folder") { NSWorkspace.shared.open(delegate.runtime.dataFolder) }
-            Button("Check for Updates…") { delegate.updater.updater.checkForUpdates() }
+            Button(desktopText("Show Data Folder")) { NSWorkspace.shared.open(delegate.runtime.dataFolder) }
+            Button(desktopText("Check for Updates…")) { delegate.updater.updater.checkForUpdates() }
             Divider()
-            Button("Stop model service") { delegate.runtime.stop() }
-            Button("Quit menu bar") { NSApp.terminate(nil) }.keyboardShortcut("q")
+            Button(desktopText("Stop model service")) { delegate.runtime.confirmStop() }
+            Button(desktopText("Quit Geist")) { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
     }
 }
@@ -66,6 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
             do { try updater.updater.start() } catch {
                 FileHandle.standardError.write(Data("Geist update service: \(error.localizedDescription)\n".utf8))
             }
+            NSApp.setActivationPolicy(.regular)
             runtime.start()
         }
     }
@@ -91,6 +92,21 @@ final class ApplicationProcess {
     private(set) var status = "Starting…"
     private(set) var running = false
     private var working = false
+    @ObservationIgnored private var monitor: Timer?
+    @ObservationIgnored lazy var desktop = DesktopWindow(retry: { [weak self] in self?.start() })
+
+    private var showsWindow: Bool { ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil }
+    private func changed() {
+        if showsWindow { desktop.update(url: url, status: status, working: working) }
+    }
+    func confirmStop() {
+        let alert = NSAlert()
+        alert.messageText = desktopText("Stop model service?")
+        alert.informativeText = desktopText("Terminal and editor connections will stop too. Downloaded models are kept.")
+        alert.addButton(withTitle: desktopText("Stop model service"))
+        alert.addButton(withTitle: desktopText("Cancel"))
+        if alert.runModal() == .alertFirstButtonReturn { stop() }
+    }
 
     var dataFolder: URL {
         if let path = ProcessInfo.processInfo.environment["GEIST_HOME"] {
@@ -129,7 +145,14 @@ final class ApplicationProcess {
     func start() {
         guard !working else { return }
         working = true
-        status = "Starting local service…"
+        status = desktopText("Starting local service…")
+        changed()
+        if showsWindow { desktop.present() }
+        if monitor == nil {
+            monitor = Timer.scheduledTimer(withTimeInterval: 4, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.refresh() }
+            }
+        }
         Task {
             let result = await Task.detached { Self.service(["start"]) }.value
             if result.0 == 0 {
@@ -138,23 +161,28 @@ final class ApplicationProcess {
                    let data = try? JSONSerialization.jsonObject(with: connection.1) as? [String: Any],
                    let base = data["base_url"] as? String,
                    let key = data["api_key"] as? String,
-                   key.count == 64,
-                   let endpoint = URL(string: base), endpoint.host == "127.0.0.1",
+                   DesktopPolicy.validKey(key),
+                   let endpoint = URL(string: base), endpoint.scheme == "http", endpoint.host == "127.0.0.1",
+                   endpoint.user == nil, endpoint.password == nil,
                    let port = endpoint.port {
                     url = URL(string: "http://127.0.0.1:\(port)/#\(key)")
                     running = true
                     status = "Local service running"
                     if ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil { open() }
                 } else { status = "Cannot read service connection" }
-            } else { status = "Service unavailable — check port 8766" }
+            } else { url = nil; running = false; status = "Service unavailable — check port 8766" }
             working = false
+            changed()
             if ProcessInfo.processInfo.environment["GEIST_TEST_QUIT"] == "1" {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { NSApp.terminate(nil) }
             }
         }
     }
 
-    func open() { if let url { NSWorkspace.shared.open(url) } }
+    func open() {
+        desktop.update(url: url, status: desktopText(status), working: working)
+        desktop.present()
+    }
 
     // Another client may stop the shared service while the menu remains open.
     func refresh() {
@@ -168,6 +196,7 @@ final class ApplicationProcess {
                 status = "Local service stopped"
             }
             working = false
+            changed()
         }
     }
 
@@ -179,6 +208,7 @@ final class ApplicationProcess {
             if result.0 == 0 { running = false; url = nil; status = "Local service stopped" }
             else { status = "Could not stop service" }
             working = false
+            changed()
         }
     }
 }

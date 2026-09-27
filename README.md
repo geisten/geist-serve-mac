@@ -1,6 +1,6 @@
 # Geist for macOS
 
-**Runs here. Stays here.** A menu bar launcher for a shared local model service.
+**Runs here. Stays here.** A desktop model manager for one shared local model service.
 Download a suggested model once, then connect the terminal, Continue in VS Code
 or OpenCode through the same geistd. The current gateway supports text chat;
 agent tools are explicitly unsupported. Geist sends no prompts to a cloud
@@ -18,8 +18,10 @@ memory policy and inference supervision live in the C23 `geist-app` in
 interface is shared with the Raspberry Pi package. The inference engine
 geistlib remains unchanged.
 
-This repository contains only the native shell: menu bar, opening the local
-browser, Start at Login and manual update checking. Closing the menu app leaves
+This repository contains the native desktop host: an AppKit window with an
+ephemeral WKWebView, a Dock icon, menu bar controls, Start at Login and manual
+update checking. The normal launch does not open a browser. Closing the window
+or quitting the desktop app leaves
 the shared service running for other clients. Use Stop model service to stop
 it explicitly. Sparkle waits for the service to stop before installing an update.
 If stopping fails, installation is cancelled and the menu explains the failure.
@@ -59,7 +61,7 @@ avoid colliding with `Geist` on case-insensitive filesystems.
 SwiftPM resolves Sparkle using Package.resolved. Automatic update checks are
 off; the menu retains manual checks against the configured release feed.
 The native runtime test uses an isolated temporary data directory and asks
-its own menu instances to quit and reattach, verifies that the same service
+its own app instances to quit and reattach, verifies that the same service
 survives, then explicitly stops that isolated test service.
 
 The two-repository integration requires the C23 runtime change first.
@@ -79,6 +81,19 @@ shell. A headless Pi is reached through an SSH tunnel to its loopback UI.
 For isolated developer tests, set `GEIST_HOME` to a temporary directory.
 `GEIST_MODEL=/path/to/file.gguf` forwards an explicit custom model to the
 runtime; this bypasses catalog validation. `GEIST_NO_OPEN=1` suppresses
-browser opening, and `GEIST_TEST_QUIT=1` exercises native application quit.
+window opening, and `GEIST_TEST_QUIT=1` exercises native application quit.
 
 Apache-2.0. Model weights retain their own licenses.
+
+## Desktop UI verification
+
+`make test` also exercises the real shared UI in WKWebView, including task
+loading, DE/EN switching without losing input, small-window layout, a private
+write-only test clipboard and close/reopen without stopping the service. Set
+`GEIST_TEST_MODEL` to the verified SmolLM2 360M catalog GGUF to additionally
+select the model, generate real text and test the shared editor endpoint.
+CI supplies that model; a model-free run must not be described as inference
+acceptance. GTK/WebKitGTK verification belongs to the companion runtime repo.
+
+The shared UI uses its own responsive light/dark styling. This is a native app
+window with shared web content, not a fully native Liquid Glass interface.

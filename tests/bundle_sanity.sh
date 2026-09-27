@@ -13,7 +13,7 @@ ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fail=1; }
 ! otool -L "$APP/Contents/MacOS/geist-app" | grep -q homebrew && ok "app has no Homebrew deps" || bad "app links Homebrew"
 "$APP/Contents/MacOS/geistd" >/dev/null 2>&1 || [ $? -eq 2 ] && ok "server runs (usage exit 2)" || bad "server runs"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null && ok "Info.plist valid" || bad "Info.plist"
-grep -q '<key>LSUIElement</key>' "$APP/Contents/Info.plist" && ok "menu bar only (LSUIElement)" || bad "LSUIElement"
+[ "$(plutil -extract LSUIElement raw "$APP/Contents/Info.plist")" = false ] && ok "desktop Dock application" || bad "LSUIElement must be false"
 ! grep -q '__VERSION__' "$APP/Contents/Info.plist" && ok "version substituted" || bad "version placeholder left"
 ! otool -L "$APP/Contents/MacOS/geistd" | grep -q homebrew && ok "server has no Homebrew deps" || bad "server links Homebrew"
 codesign -dv "$APP" 2>&1 | grep -q 'Signature' && ok "signed (ad-hoc or better)" || bad "unsigned"
