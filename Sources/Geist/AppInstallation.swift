@@ -22,6 +22,16 @@ enum AppInstallation {
               let value = info["CFBundleShortVersionString"] as? String else { return nil }
         return AppVersion(value)
     }
+    static func build(at url: URL) -> Int {
+        guard let data = try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")),
+              let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              let value = info["CFBundleVersion"] as? String, let build = Int(value) else { return 0 }
+        return build
+    }
+    static func isAtLeastAsNew(_ installed: URL, as incoming: URL) -> Bool {
+        guard let a = version(at: installed), let b = version(at: incoming) else { return false }
+        return a > b || (a == b && build(at: installed) >= build(at: incoming))
+    }
     static func verify(_ bundle: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
@@ -42,7 +52,7 @@ enum AppInstallation {
         }
         if exists {
             guard let installed = version(at: destination) else { throw Failure.invalidBundle }
-            guard incoming >= installed else { throw Failure.downgrade }
+            guard incoming > installed || (incoming == installed && build(at: source) >= build(at: destination)) else { throw Failure.downgrade }
         }
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".Geist-install-\(UUID().uuidString).app")
@@ -69,10 +79,10 @@ enum LaunchInstallation {
     static func prepare() async -> Bool {
         let source = Bundle.main.bundleURL
         guard ProcessInfo.processInfo.environment["GEIST_HOME"] == nil,
-              let current = AppInstallation.version(at: source) else { return true }
+              AppInstallation.version(at: source) != nil else { return true }
         let destination = URL(fileURLWithPath: "/Applications/Geist.app", isDirectory: true)
         if source.standardizedFileURL != destination,
-           let installed = AppInstallation.version(at: destination), installed >= current {
+           AppInstallation.isAtLeastAsNew(destination, as: source) {
             await openInstalled(destination)
             return false
         }
@@ -101,7 +111,13 @@ enum LaunchInstallation {
         return false
     }
     private static func openInstalled(_ url: URL) async {
-        do { _ = try await NSWorkspace.shared.openApplication(at: url, configuration: .init()) }
+        do {
+            // Both bundles have the same identifier. Reusing an existing
+            // instance would return this DMG installer, which then exits.
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.createsNewApplicationInstance = true
+            _ = try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+        }
         catch {
             let alert = NSAlert(error: error); alert.runModal()
         }

@@ -16,6 +16,25 @@ final class InstallationTests: XCTestCase {
         XCTAssertLessThanOrEqual(laptop.width, 780)
         XCTAssertLessThan(laptop.height, 580)
     }
+    func testSignedCandidateReplacesOldBundle() throws {
+        guard let runtime = ProcessInfo.processInfo.environment["GEIST_DESKTOP_RUNTIME"] else { throw XCTSkip("Build the candidate bundle first") }
+        let candidate = URL(fileURLWithPath: runtime).appendingPathComponent("Geist.app")
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let installed = root.appendingPathComponent("Geist.app")
+        try fm.createDirectory(at: installed.appendingPathComponent("Contents"), withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+        let info = ["CFBundleIdentifier": "com.geisten.geist", "CFBundleShortVersionString": "0.0.0"]
+        try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+            .write(to: installed.appendingPathComponent("Contents/Info.plist"))
+        // CI also builds non-release 0.0.0-dev bundles. Only numeric candidates
+        // can participate in installation; development builds never relocate.
+        guard AppInstallation.version(at: candidate) != nil else { throw XCTSkip("Numeric release candidate required") }
+        try AppInstallation.replace(source: candidate, destination: installed, prepare: {})
+        try AppInstallation.verify(installed)
+        XCTAssertEqual(AppInstallation.version(at: installed), AppInstallation.version(at: candidate))
+    }
+
     func testMinorReplacementAndFailuresPreserveInstalledBundle() throws {
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -31,6 +50,13 @@ final class InstallationTests: XCTestCase {
         }
         let installed = try bundle("Geist.app", version: "0.4.1")
         let incoming = try bundle("download.app", version: "0.5.3")
+        XCTAssertFalse(AppInstallation.isAtLeastAsNew(installed, as: incoming))
+        let same = try bundle("same.app", version: "0.5.3")
+        XCTAssertTrue(AppInstallation.isAtLeastAsNew(same, as: incoming))
+        let newerBuild = ["CFBundleIdentifier": "com.geisten.geist", "CFBundleShortVersionString": "0.5.3", "CFBundleVersion": "28"]
+        try PropertyListSerialization.data(fromPropertyList: newerBuild, format: .xml, options: 0)
+            .write(to: incoming.appendingPathComponent("Contents/Info.plist"))
+        XCTAssertFalse(AppInstallation.isAtLeastAsNew(same, as: incoming))
         let data = root.appendingPathComponent("models-marker")
         try Data("untouched".utf8).write(to: data)
         var prepared = false
