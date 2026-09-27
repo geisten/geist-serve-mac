@@ -159,6 +159,12 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         case "language":
             guard let value = body["value"], ["de", "en"].contains(value) else { replyHandler(nil, "Invalid language"); return }
             UserDefaults.standard.set(value, forKey: "interfaceLanguage")
+            // The same ephemeral WebView can reconnect after a service restart.
+            // Future documents must receive the latest bounded preference.
+            controller.removeAllUserScripts()
+            controller.addUserScript(WKUserScript(
+                source: "window.geistLanguage = '\(value)'; window.geistDesktop = 'mac';",
+                injectionTime: .atDocumentStart, forMainFrameOnly: true))
         case "copy":
             guard let value = body["value"], value.utf8.count <= 131072 else { replyHandler(nil, "Text too large"); return }
             clipboard.clearContents()

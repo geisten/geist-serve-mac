@@ -29,10 +29,13 @@ The stop runs off the UI thread; a cancelled update cannot resume an old install
 Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
-The first screen shows RAM, compute cores and free disk space, then
-recommended, conditional or unavailable models with reasons. Completed local
-runs add measured generation speed. Hardware estimates are labelled separately
-from measurements. Slow models remain selectable.
+The first screen offers one platform-checked model and **Set up and start**,
+with a concise preview notice. A smaller fallback is considered by the shared
+service. Once ready, type directly or choose Rewrite, Summarize or Ideas without
+switching models. Customize contains model overrides, language settings,
+hardware information, measurements and service controls. Explicit model choices,
+answer language and per-model preview consent survive reopening; prompts do not.
+Hardware suitability does not establish answer quality.
 
 See the shared [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md)
 for the catalog, model licenses, memory assumptions, privacy boundary and
