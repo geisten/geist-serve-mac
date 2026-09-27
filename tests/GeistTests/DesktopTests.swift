@@ -182,7 +182,19 @@ final class DesktopWebViewTests: XCTestCase {
             let zoomError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(zoomError as? String, "", "Minimum window and enlarged text remain usable")
             try await snapshot(desktop.webView, name: "ready-minimum-zoom.png")
-            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; true")
+            _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; document.querySelector('#performance summary').focus(); true")
+            let detailTab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: desktop.window!.windowNumber, context: nil, characters: "\t",
+                charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
+            desktop.webView.keyDown(with: detailTab)
+            try await waitFor(desktop.webView, "document.activeElement === document.querySelector('.performance-content')")
+            let pageDown = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: desktop.window!.windowNumber, context: nil, characters: "\u{F72D}",
+                charactersIgnoringModifiers: "\u{F72D}", isARepeat: false, keyCode: 121)!
+            desktop.webView.keyDown(with: pageDown)
+            try await waitFor(desktop.webView, "document.querySelector('.performance-content').scrollTop > 0")
+            try await snapshot(desktop.webView, name: "performance-keyboard-scroll.png")
+            _ = try await evaluate(desktop.webView, "document.querySelector('.performance-content').scrollTop=0; true")
             try await snapshot(desktop.webView, name: "performance-minimum-zoom.png")
             _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; true")
             desktop.webView.pageZoom = 1
