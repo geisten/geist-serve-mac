@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import WebKit
 import XCTest
 @testable import Geist
@@ -151,6 +152,17 @@ final class DesktopWebViewTests: XCTestCase {
             XCTAssertFalse((realTokens as? String ?? "—").contains("—"), "A real response must include final generation metrics")
             _ = try await evaluate(desktop.webView, "document.getElementById('test-connection').click(); true")
             try await waitFor(desktop.webView, "!connectionTesting && document.getElementById('connection-result').textContent.startsWith('Connected.')", timeout: 600)
+            _ = try await evaluate(desktop.webView, "api('/app/connections').then(response => response.json()).then(c => window.testDaemonPID=c.daemon_pid); true")
+            try await waitFor(desktop.webView, "window.testDaemonPID > 0")
+            let daemon = try await evaluate(desktop.webView, "window.testDaemonPID") as! Int
+            XCTAssertEqual(kill(pid_t(daemon), SIGKILL), 0)
+            try await waitFor(desktop.webView, "state && !state.ready && !state.loading")
+            _ = try await evaluate(desktop.webView, "document.querySelector('[data-id=\"smollm2-360m\"] .remove').id='remove-test'; true")
+            let removable = try await evaluate(desktop.webView, "!document.getElementById('remove-test').disabled")
+            XCTAssertEqual(removable as? Bool, true, "An exited model must remain removable")
+            try await confirm(desktop, element: "remove-test", accept: true)
+            try await waitFor(desktop.webView, "state.models.find(model => model.id === 'smollm2-360m').installed === false")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: home.appendingPathComponent("models/smollm2-360m-instruct-q8_0.gguf").path))
         }
         try await confirm(desktop, element: "quit", accept: false)
         XCTAssertTrue(child.isRunning, "Cancelling the native confirmation preserves the service")
