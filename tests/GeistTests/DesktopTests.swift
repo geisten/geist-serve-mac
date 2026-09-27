@@ -156,6 +156,15 @@ final class DesktopWebViewTests: XCTestCase {
             try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError")
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
+            _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
+            for target in ["document.querySelector('#chat-help summary')", "document.getElementById('run')"] {
+                let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                    windowNumber: desktop.window!.windowNumber, context: nil, characters: "\t",
+                    charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
+                desktop.webView.keyDown(with: tab)
+                try await waitFor(desktop.webView, "document.activeElement === \(target)")
+            }
+            _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value=''; document.getElementById('prompt').dispatchEvent(new Event('input')); true")
             desktop.window?.setContentSize(NSSize(width: 780, height: 620))
             _ = try await evaluate(desktop.webView, #"window.markdownFixture = '# A little more room to think\n\nA **clear structure** makes an answer easier to scan.\n\n- Read the main point first.\n- Follow up without changing modes.\n\n```python\nprint("Runs here. Stays here.")\n```\n\n| Action | Shortcut |\n| --- | --- |\n| Send | Enter |\n| New line | Shift + Enter |'; window.fixtureTurn = addTurn('Markdown layout fixture — headings, lists, code and tables'); updateMarkdown(fixtureTurn.output, markdownFixture); fixtureTurn.status.textContent=''; fixtureTurn.copy.disabled=false; document.getElementById('transcript').scrollTop=0; document.getElementById('prompt').focus(); true"#)
             try await snapshot(desktop.webView, name: "markdown-fixture.png")

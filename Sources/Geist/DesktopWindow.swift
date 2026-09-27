@@ -66,6 +66,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        configuration.preferences.tabFocusesLinks = true
         let locale = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? Locale.preferredLanguages.first ?? "en"
         let language = locale.hasPrefix("de") ? "de" : "en"
         configuration.userContentController.addUserScript(WKUserScript(
