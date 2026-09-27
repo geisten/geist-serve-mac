@@ -36,7 +36,8 @@ final class DesktopWebViewTests: XCTestCase {
             if let value = try? await evaluate(view, condition), value as? Bool == true { return }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        throw NSError(domain: "DesktopTest", code: 1, userInfo: [NSLocalizedDescriptionKey: "WebView condition did not become true: \(condition)"])
+        let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:setupCandidate()?.id,notice:document.getElementById('notice').textContent})")
+        throw NSError(domain: "DesktopTest", code: 1, userInfo: [NSLocalizedDescriptionKey: "WebView condition did not become true: \(condition); \(detail ?? "no status")"])
     }
     func confirm(_ desktop: DesktopWindow, element: String, accept: Bool) async throws {
         let click = Task { try await evaluate(desktop.webView, "document.getElementById('\(element)').click(); true") }
@@ -85,7 +86,7 @@ final class DesktopWebViewTests: XCTestCase {
         if let model {
             let models = home.appendingPathComponent("models")
             try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
-            try FileManager.default.copyItem(at: URL(fileURLWithPath: model), to: models.appendingPathComponent("smollm2-360m-instruct-q8_0.gguf"))
+            try FileManager.default.copyItem(at: URL(fileURLWithPath: model).resolvingSymlinksInPath(), to: models.appendingPathComponent("smollm2-360m-instruct-q8_0.gguf"))
         }
         let previousLanguage = UserDefaults.standard.object(forKey: "interfaceLanguage")
         defer {
@@ -119,6 +120,9 @@ final class DesktopWebViewTests: XCTestCase {
         desktop.window?.appearance = NSAppearance(named: .aqua)
         try await waitFor(desktop.webView, "!matchMedia('(prefers-color-scheme: dark)').matches")
         try await snapshot(desktop.webView, name: "setup-light.png")
+        let transfer = try await evaluate(desktop.webView, "JSON.stringify([downloadEstimate('fixture',1000000,100000000,0),downloadEstimate('fixture',6000000,100000000,5000),downloadEstimate('fixture',1000,100000000,6000),downloadEstimate('fixture',1000,100000000,18000),downloadEstimate('other',90000000,100000000,20000)])")
+        XCTAssertEqual(transfer as? String, "[\"Measuring speed…\",\"1.0 MB/s · About 2 min left\",\"Measuring speed…\",\"Waiting for data…\",\"Measuring speed…\"]")
+
         desktop.window?.appearance = NSAppearance(named: .darkAqua)
         try await waitFor(desktop.webView, "matchMedia('(prefers-color-scheme: dark)').matches")
         try await snapshot(desktop.webView, name: "setup-dark.png")

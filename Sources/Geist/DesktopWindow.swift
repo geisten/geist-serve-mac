@@ -4,6 +4,10 @@ import WebKit
 // Shared UI messages are deliberately limited to preferences and clipboard text.
 // No message can execute a command, access files or control the model service.
 enum DesktopPolicy {
+    static func initialSize(visible: NSSize) -> NSSize {
+        NSSize(width: min(780, max(540, visible.width * 0.72)),
+               height: min(620, max(480, visible.height * 0.78)))
+    }
     static func validKey(_ key: String) -> Bool {
         key.utf8.count == 64 && key.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
     }
@@ -21,7 +25,19 @@ enum DesktopPolicy {
 @MainActor func desktopText(_ english: String) -> String {
     let language = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? Locale.preferredLanguages.first ?? "en"
     guard language.hasPrefix("de") else { return english }
-    return ["Start Geist": "Geist starten", "Start at Login": "Bei Anmeldung starten", "Show Data Folder": "Datenordner anzeigen", "Check for Updates…": "Nach Updates suchen…", "Open Geist": "Geist öffnen", "Quit Geist": "Geist beenden", "Cancel": "Abbrechen",
+    return ["Install Geist in Applications?": "Geist unter Programme installieren?",
+        "This replaces the previous app. Your models and settings are kept.": "Die bisherige App wird ersetzt. Modelle und Einstellungen bleiben erhalten.",
+        "Install and open": "Installieren und öffnen", "Geist could not be installed": "Geist konnte nicht installiert werden",
+        "The previous app is kept. Copy Geist to Applications in Finder, then open it there.": "Die bisherige App bleibt erhalten. Kopiere Geist im Finder nach Programme und öffne es dort.",
+        "Close the previous Geist app first": "Schließe zuerst die bisherige Geist-App",
+        "An update or another window is still open. Your model service has not been stopped.": "Ein Update oder ein anderes Fenster ist noch offen. Der Modelldienst wurde nicht gestoppt.",
+        "Restart the older model service?": "Älteren Modelldienst neu starten?",
+        "Finish any current task first. Geist will use the installed version. Downloads and models are kept.": "Beende zuerst laufende Aufgaben. Geist verwendet dann die installierte Version. Downloads und Modelle bleiben erhalten.",
+        "Restart and continue": "Neu starten und fortfahren",
+        "Finish the current task, then reconnect to update Geist.": "Beende die laufende Aufgabe und verbinde dich erneut, um Geist zu aktualisieren.",
+        "A newer Geist service is running. Open the newest installed app.": "Ein neuerer Geist-Dienst läuft. Öffne die neueste installierte App.",
+        "Restart the older service to use this app.": "Starte den älteren Dienst neu, um diese App zu verwenden.",
+        "Start Geist": "Geist starten", "Start at Login": "Bei Anmeldung starten", "Show Data Folder": "Datenordner anzeigen", "Check for Updates…": "Nach Updates suchen…", "Open Geist": "Geist öffnen", "Quit Geist": "Geist beenden", "Cancel": "Abbrechen",
         "Stop model service": "Modelldienst stoppen", "Stop model service?": "Modelldienst stoppen?",
         "Terminal and editor connections will stop too. Downloaded models are kept.": "Auch Terminal und Editoren werden getrennt. Heruntergeladene Modelle bleiben erhalten.",
         "Starting local service…": "Lokaler Dienst wird gestartet…", "Starting…": "Wird gestartet…",
@@ -56,10 +72,12 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
             source: "window.geistLanguage = '\(language)'; window.geistDesktop = 'mac';",
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView = WKWebView(frame: .zero, configuration: configuration)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1080, height: 780),
+        let size = DesktopPolicy.initialSize(visible: NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800))
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "Geist"
-        window.minSize = NSSize(width: 540, height: 500)
+        window.minSize = NSSize(width: 540, height: 480)
+        window.titlebarSeparatorStyle = .none
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)

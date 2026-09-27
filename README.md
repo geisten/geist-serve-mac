@@ -100,3 +100,24 @@ acceptance. GTK/WebKitGTK verification belongs to the companion runtime repo.
 
 The shared UI uses its own responsive light/dark styling. This is a native app
 window with shared web content, not a fully native Liquid Glass interface.
+
+
+### Installing and updating the desktop app
+
+The DMG app offers **Install and open**, replacing `/Applications/Geist.app` in
+place. The candidate is copied and signature-checked before replacement; failed
+copy/validation leaves the installed bundle intact. Models, download fragments,
+preferences and credentials are outside the bundle and are preserved.
+
+From this release, a stale mounted copy opens an equal/newer installed version.
+The new CLI checks the shared service version and upgrades an older versioned
+service only while idle. Pre-versioned services need one confirmed restart;
+newer services are never silently downgraded. Existing older DMGs cannot acquire
+this behavior retroactively: eject them after installation.
+
+Sparkle checks for signed updates daily by default. It replaces the installed
+app, rather than creating a second versioned app. Public delivery still requires
+the notarized release and signed appcast; local ad-hoc DMGs do not satisfy that
+gate. The default window is at most 780 × 620 points and scales down on smaller
+screens. Download speed and remaining time are estimates from recent bytes
+received in the current window, not throughput guarantees.

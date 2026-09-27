@@ -67,7 +67,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
                 FileHandle.standardError.write(Data("Geist update service: \(error.localizedDescription)\n".utf8))
             }
             NSApp.setActivationPolicy(.regular)
-            runtime.start()
+            Task { @MainActor in
+                guard await LaunchInstallation.prepare() else { NSApp.terminate(nil); return }
+                runtime.start()
+            }
         }
     }
 
@@ -154,7 +157,17 @@ final class ApplicationProcess {
             }
         }
         Task {
-            let result = await Task.detached { Self.service(["start"]) }.value
+            var result = await Task.detached { Self.service(["start"]) }.value
+            if result.0 == 42 {
+                let alert = NSAlert()
+                alert.messageText = desktopText("Restart the older model service?")
+                alert.informativeText = desktopText("Finish any current task first. Geist will use the installed version. Downloads and models are kept.")
+                alert.addButton(withTitle: desktopText("Restart and continue"))
+                alert.addButton(withTitle: desktopText("Cancel"))
+                if alert.runModal() == .alertFirstButtonReturn {
+                    result = await Task.detached { Self.service(["restart"]) }.value
+                }
+            }
             if result.0 == 0 {
                 let connection = await Task.detached { Self.service(["connection"]) }.value
                 if connection.0 == 0,
@@ -170,7 +183,13 @@ final class ApplicationProcess {
                     status = "Local service running"
                     if ProcessInfo.processInfo.environment["GEIST_NO_OPEN"] == nil { open() }
                 } else { status = "Cannot read service connection" }
-            } else { url = nil; running = false; status = "Service unavailable — check port 8766" }
+            } else {
+                url = nil; running = false
+                status = result.0 == 43 ? "Finish the current task, then reconnect to update Geist."
+                    : result.0 == 44 ? "A newer Geist service is running. Open the newest installed app."
+                    : result.0 == 42 ? "Restart the older service to use this app."
+                    : "Service unavailable — check port 8766"
+            }
             working = false
             changed()
             if ProcessInfo.processInfo.environment["GEIST_TEST_QUIT"] == "1" {
