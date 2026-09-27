@@ -15,6 +15,10 @@ if [ -z "$runtime_dir" ]; then
     runtime_dir=$source_dir
 fi
 mkdir -p build
+license_file="$runtime_dir/web/vendor/marked-LICENSE"
+[ -f "$license_file" ] || license_file="$runtime_dir/marked-LICENSE"
+[ -f "$license_file" ] || { echo 'Missing Marked license in runtime input' >&2; exit 1; }
+cp "$license_file" build/marked-LICENSE
 for binary in geist geist-app geistd; do
     [ -x "$runtime_dir/$binary" ] || { echo "Missing runtime: $runtime_dir/$binary" >&2; exit 1; }
     if otool -L "$runtime_dir/$binary" | grep -q '/opt/homebrew\|/usr/local/'; then

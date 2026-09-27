@@ -78,6 +78,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         window.title = "Geist"
         window.minSize = NSSize(width: 540, height: 480)
         window.titlebarSeparatorStyle = .none
+        window.backgroundColor = NSColor(srgbRed: 250/255, green: 248/255, blue: 242/255, alpha: 1)
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)

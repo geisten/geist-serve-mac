@@ -17,6 +17,7 @@ fi
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp build/marked-LICENSE "$APP/Contents/Resources/marked-LICENSE"
 cp build/icon/AppIcon.icns build/icon/MenuBarIcon.png build/icon/MenuBarIcon@2x.png "$APP/Contents/Resources/"
 cp "$BIN/Geist" "$APP/Contents/MacOS/Geist"
 cp build/geistd "$APP/Contents/MacOS/geistd"

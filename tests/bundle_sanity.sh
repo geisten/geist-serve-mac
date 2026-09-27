@@ -19,6 +19,7 @@ plutil -lint "$APP/Contents/Info.plist" >/dev/null && ok "Info.plist valid" || b
 codesign -dv "$APP" 2>&1 | grep -q 'Signature' && ok "signed (ad-hoc or better)" || bad "unsigned"
 codesign --verify --deep --strict "$APP" && ok "bundle signature verifies" || bad "invalid bundle signature"
 (cd "$APP/Contents" && shasum -a 256 -c Resources/RUNTIME-SHA256SUMS) && ok "signed runtime hashes match" || bad "runtime hashes mismatch"
+[ -s "$APP/Contents/Resources/marked-LICENSE" ] && ok "Markdown license bundled" || bad "Markdown license missing"
 [ -f "$APP/Contents/Resources/AppIcon.icns" ] && ok "app icon bundled" || bad "AppIcon.icns missing"
 [ -f "$APP/Contents/Resources/MenuBarIcon@2x.png" ] && ok "menu bar glyph bundled" || bad "MenuBarIcon missing"
 plutil -extract CFBundleIconFile raw "$APP/Contents/Info.plist" 2>/dev/null | grep -q AppIcon && ok "CFBundleIconFile" || bad "CFBundleIconFile"
