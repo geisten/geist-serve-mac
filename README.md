@@ -31,11 +31,18 @@ Model policy is not duplicated in Swift. The bundled terminal client lives at
 
 The first screen offers one platform-checked model and **Set up and start**,
 with a concise preview notice. A smaller fallback is considered by the shared
-service. Once ready, press Enter to send or Shift + Enter for a new line. Follow-up
-questions use this window’s conversation. Tips offers examples without mode switches. Customize contains model overrides, language settings,
-hardware information, measurements and service controls. Explicit model choices,
-answer language and per-model preview consent persist. Conversation lives only in
-page memory and is cleared by New chat, reloading or quitting.
+service. Once ready, **Models** remains the main view with **Connect a program**
+as the next action. **Change model** lists download rings before each model:
+empty, percentage, paused, checking, or closed green with a check for downloaded.
+The running state and hardware suitability are separate. **System & performance**
+opens machine details and measurements. **Settings** holds language and service
+controls. The native menu shows the active model and status and offers direct
+**Models & performance** and **Connect a program** routes without reloading.
+
+**Quick test** is optional. Enter sends, Shift + Enter inserts a newline, and
+follow-ups use this window's conversation. Explicit model choices, answer language
+and per-model preview consent persist. The test lives only in page memory and
+is cleared by Clear test, reloading or quitting.
 Hardware suitability does not establish answer quality.
 
 See the shared [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md)

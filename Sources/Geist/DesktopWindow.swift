@@ -22,6 +22,10 @@ enum DesktopPolicy {
     }
 }
 
+enum DesktopDestination: String {
+    case models = "models-page", connect = "connect-page", test = "test-page"
+}
+
 @MainActor func desktopText(_ english: String) -> String {
     let language = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? Locale.preferredLanguages.first ?? "en"
     guard language.hasPrefix("de") else { return english }
@@ -37,6 +41,7 @@ enum DesktopPolicy {
         "Finish the current task, then reconnect to update Geist.": "Beende die laufende Aufgabe und verbinde dich erneut, um Geist zu aktualisieren.",
         "A newer Geist service is running. Open the newest installed app.": "Ein neuerer Geist-Dienst läuft. Öffne die neueste installierte App.",
         "Restart the older service to use this app.": "Starte den älteren Dienst neu, um diese App zu verwenden.",
+        "Models & performance": "Modelle & Leistung", "Connect a program": "Programm verbinden", "No model loaded": "Kein Modell geladen", "Model ready": "Modell bereit", "Preparing model…": "Modell wird vorbereitet…", "Model in use": "Modell wird verwendet",
         "Start Geist": "Geist starten", "Start at Login": "Bei Anmeldung starten", "Show Data Folder": "Datenordner anzeigen", "Check for Updates…": "Nach Updates suchen…", "Open Geist": "Geist öffnen", "Quit Geist": "Geist beenden", "Cancel": "Abbrechen",
         "Stop model service": "Modelldienst stoppen", "Stop model service?": "Modelldienst stoppen?",
         "Terminal and editor connections will stop too. Downloaded models are kept.": "Auch Terminal und Editoren werden getrennt. Heruntergeladene Modelle bleiben erhalten.",
@@ -59,6 +64,8 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
     private let clipboard: NSPasteboard
     private(set) var origin: URL?
     private var loaded: URL?
+    private var navigationReady = false
+    private var pendingDestination: DesktopDestination?
 
     init(clipboard: NSPasteboard = .general, retry: @escaping () -> Void) {
         self.retry = retry
@@ -119,7 +126,9 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     @objc private func reconnect() { loaded = nil; retry() }
-    func present() {
+    func present(destination: DesktopDestination? = nil) {
+        if let destination { pendingDestination = destination }
+        routePendingDestination()
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -128,22 +137,33 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         statusLabel.stringValue = desktopText(status)
         retryButton.isEnabled = !working
         guard let url else {
-            origin = nil; loaded = nil; webView.stopLoading()
+            origin = nil; loaded = nil; navigationReady = false; webView.stopLoading()
             webView.isHidden = true; overlay.isHidden = false
             return
         }
         origin = url
         if loaded != url {
-            loaded = url
+            loaded = url; navigationReady = false
             webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
         }
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard DesktopPolicy.local(webView.url, origin: origin) else { return }
         overlay.isHidden = true; webView.isHidden = false
+        navigationReady = true
+        routePendingDestination()
+    }
+    private func routePendingDestination() {
+        guard navigationReady, DesktopPolicy.local(webView.url, origin: origin), let destination = pendingDestination else { return }
+        webView.callAsyncJavaScript("return window.geistNavigate?.(page) === true", arguments: ["page": destination.rawValue],
+                                   in: nil, in: .page) { [weak self] result in
+            if case .success(let applied as Bool) = result, applied, self?.pendingDestination == destination {
+                self?.pendingDestination = nil
+            }
+        }
     }
     private func failed() {
-        loaded = nil
+        loaded = nil; navigationReady = false
         statusLabel.stringValue = desktopText("The interface could not be loaded. Try reconnecting.")
         retryButton.isEnabled = true
         webView.isHidden = true; overlay.isHidden = false

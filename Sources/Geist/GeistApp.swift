@@ -10,11 +10,13 @@ struct GeistApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     var body: some Scene {
         MenuBarExtra("Geist", systemImage: "waveform.circle") {
-            Text(delegate.runtime.status)
+            Text(desktopText(delegate.runtime.status))
                 .onAppear { delegate.runtime.refresh() }
-            Button(desktopText("Open Geist")) { delegate.runtime.open() }
+            if !delegate.runtime.modelName.isEmpty { Text(delegate.runtime.modelName) }
+            Button(desktopText("Models & performance")) { delegate.runtime.open(destination: .models) }
 
                 .keyboardShortcut("o")
+            Button(desktopText("Connect a program")) { delegate.runtime.open(destination: .connect) }
             if !delegate.runtime.running {
                 Button(desktopText("Start Geist")) { delegate.runtime.start() }
             }
@@ -94,6 +96,7 @@ final class ApplicationProcess {
     private(set) var url: URL?
     private(set) var status = "Starting…"
     private(set) var running = false
+    private(set) var modelName = ""
     private var working = false
     @ObservationIgnored private var monitor: Timer?
     @ObservationIgnored lazy var desktop = DesktopWindow(retry: { [weak self] in self?.start() })
@@ -198,9 +201,9 @@ final class ApplicationProcess {
         }
     }
 
-    func open() {
+    func open(destination: DesktopDestination? = nil) {
         desktop.update(url: url, status: desktopText(status), working: working)
-        desktop.present()
+        desktop.present(destination: destination)
     }
 
     // Another client may stop the shared service while the menu remains open.
@@ -213,6 +216,16 @@ final class ApplicationProcess {
                 running = false
                 url = nil
                 status = "Local service stopped"
+                modelName = ""
+            } else if let data = try? JSONSerialization.jsonObject(with: result.1) as? [String: Any] {
+                let models = data["models"] as? [[String: Any]] ?? []
+                let activeID = data["active_id"] as? String
+                modelName = models.first(where: { $0["id"] as? String == activeID })?["name"] as? String ?? ""
+                if modelName.isEmpty, let active = data["active"] as? String, !active.isEmpty {
+                    modelName = URL(fileURLWithPath: active).lastPathComponent
+                }
+                status = (data["loading"] as? Bool == true || !(data["phase"] as? String ?? "").isEmpty) ? "Preparing model…"
+                    : data["ready"] as? Bool == true ? (data["busy"] as? Bool == true ? "Model in use" : "Model ready") : "No model loaded"
             }
             working = false
             changed()
@@ -224,7 +237,7 @@ final class ApplicationProcess {
         working = true
         Task {
             let result = await Task.detached { Self.service(["stop"]) }.value
-            if result.0 == 0 { running = false; url = nil; status = "Local service stopped" }
+            if result.0 == 0 { running = false; url = nil; modelName = ""; status = "Local service stopped" }
             else { status = "Could not stop service" }
             working = false
             changed()
