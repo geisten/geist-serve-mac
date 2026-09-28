@@ -1,5 +1,6 @@
 import AppKit
 import WebKit
+import UniformTypeIdentifiers
 
 // Shared UI messages are deliberately limited to preferences and clipboard text.
 // No message can execute a command, access files or control the model service.
@@ -211,6 +212,21 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: desktopText("Cancel"))
         alert.beginSheetModal(for: window) { completionHandler($0 == .alertFirstButtonReturn) }
+    }
+    func webView(_ webView: WKWebView, runOpenPanelWith parameters: WKOpenPanelParameters,
+                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping ([URL]?) -> Void) {
+        guard frame.isMainFrame, DesktopPolicy.local(frame.request.url, origin: origin), let window else {
+            completionHandler(nil); return
+        }
+        // Only the file explicitly selected by the owner is exposed to the local page.
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.beginSheetModal(for: window) { result in
+            completionHandler(result == .OK ? panel.urls : nil)
+        }
     }
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage,
                                replyHandler: @escaping (Any?, String?) -> Void) {

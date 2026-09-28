@@ -11,8 +11,11 @@ if [ -z "$runtime_dir" ]; then
         echo 'Set RUNTIME_DIR=/path/to/that/checkout, or GEIST_RUNTIME_BIN_DIR to verified release binaries.' >&2
         exit 1
     }
-    make -C "$source_dir" geistd app GEIST_STATIC_OMP=1
+    make -C "$source_dir" GEISTD_OUTPUT=build/geistd-execution build/geistd-execution app GEIST_STATIC_OMP=1
     runtime_dir=$source_dir
+    daemon_binary=$source_dir/build/geistd-execution
+else
+    daemon_binary=$runtime_dir/geistd
 fi
 mkdir -p build
 license_file="$runtime_dir/web/vendor/marked-LICENSE"
@@ -20,10 +23,12 @@ license_file="$runtime_dir/web/vendor/marked-LICENSE"
 [ -f "$license_file" ] || { echo 'Missing Marked license in runtime input' >&2; exit 1; }
 cp "$license_file" build/marked-LICENSE
 for binary in geist geist-app geistd; do
-    [ -x "$runtime_dir/$binary" ] || { echo "Missing runtime: $runtime_dir/$binary" >&2; exit 1; }
-    if otool -L "$runtime_dir/$binary" | grep -q '/opt/homebrew\|/usr/local/'; then
+    input_binary=$runtime_dir/$binary
+    [ "$binary" != geistd ] || input_binary=$daemon_binary
+    [ -x "$input_binary" ] || { echo "Missing runtime: $input_binary" >&2; exit 1; }
+    if otool -L "$input_binary" | grep -q '/opt/homebrew\|/usr/local/'; then
         echo "Runtime depends on a developer installation: $binary" >&2; exit 1
     fi
-    cp "$runtime_dir/$binary" "build/$binary"
+    cp "$input_binary" "build/$binary"
 done
 shasum -a 256 build/geist build/geist-app build/geistd > build/RUNTIME-SHA256SUMS

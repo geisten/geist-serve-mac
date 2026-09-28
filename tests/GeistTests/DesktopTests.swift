@@ -271,6 +271,21 @@ final class DesktopWebViewTests: XCTestCase {
             try await snapshot(desktop.webView, name: "ready-german.png")
             _ = try await evaluate(desktop.webView, "showPage('settings-page'); true")
             try await snapshot(desktop.webView, name: "settings.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('catalog-file').click(); true")
+            for _ in 0..<100 {
+                if desktop.window?.attachedSheet is NSOpenPanel { break }
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            let catalogPanel = try XCTUnwrap(desktop.window?.attachedSheet as? NSOpenPanel)
+            XCTAssertFalse(catalogPanel.allowsMultipleSelection)
+            XCTAssertFalse(catalogPanel.canChooseDirectories)
+            XCTAssertEqual(catalogPanel.allowedContentTypes.map(\.identifier), ["public.json"])
+            catalogPanel.cancel(nil)
+            for _ in 0..<100 {
+                if desktop.window?.attachedSheet == nil { break }
+                try await Task.sleep(nanoseconds: 20_000_000)
+            }
+
             _ = try await evaluate(desktop.webView, "showPage('models-page'); true")
             _ = try await evaluate(desktop.webView, "api('/app/connections').then(response => response.json()).then(c => window.testDaemonPID=c.daemon_pid); true")
             try await waitFor(desktop.webView, "window.testDaemonPID > 0")
