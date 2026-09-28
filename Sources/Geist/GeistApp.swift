@@ -15,7 +15,7 @@ struct GeistApp: App {
             Text(desktopText(delegate.runtime.status))
                 .onAppear { delegate.runtime.refresh() }
             if !delegate.runtime.modelName.isEmpty { Text(delegate.runtime.modelName) }
-            Button(desktopText("Models & performance")) { delegate.runtime.open(destination: .models) }
+            Button(desktopText("Models")) { delegate.runtime.open(destination: .models) }
 
                 .keyboardShortcut("o")
             Button(desktopText("Connect a program")) { delegate.runtime.open(destination: .connect) }

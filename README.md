@@ -37,15 +37,15 @@ fallback is considered by the shared service. **Models** keeps the catalog and *
 in the default window, stacked in a narrow one, with independent scrolling.
 **Connect a program** opens editor setup. Each catalog row has a download ring:
 empty, percentage, paused, checking, or closed green with a check for downloaded.
-The running state and hardware suitability are separate. **System & performance**
-opens machine details and measurements. **Settings** holds language and service
+The running state and hardware suitability are separate. The metric row below the
+active model expands to show machine details and measurements in the same place. **Settings** holds language and service
 controls. The gear opens settings directly. The interface follows the OS language
 (German, otherwise English) until an explicit language is selected. **System language**
 restores automatic detection. This preference also updates native menu labels and
 survives reconnects; it does not translate existing input or model responses.
 The white interface uses labeled icons for common actions and keeps model speed,
 RAM and file size beside the active model. The native menu shows the active model and status and offers direct
-**Models & performance** and **Connect a program** routes without reloading.
+**Models** and **Connect a program** routes without reloading.
 
 **Quick test** is optional. Enter sends, Shift + Enter inserts a newline, and
 follow-ups use this window's conversation. Explicit model choices, answer language
@@ -139,12 +139,13 @@ received in the current window, not throughput guarantees.
 
 ### Model performance
 
-The Models view shows tokens/s for the last completed test reply and the current
-resident RAM of the shared model process. The optional Quick test repeats those
-values below its input. **System & performance**, below the model, opens the
-machine/OS, logical CPUs, available RAM, normalized process CPU load, output
-count and reply timings. The expandable panel supports keyboard scrolling and
-small windows. Missing measurements remain unknown; stopped replies have no
-final speed. See the pinned runtime’s `docs/INSTALL.md` for exact definitions.
-The reading surface uses cream white and graphite; petrol identifies actions,
-keyboard focus and measurements, while green remains a ready-state indicator.
+The active model has one metric row: tokens/s for the last completed test reply,
+current resident RAM of the shared model process and model file size. Clicking
+that row or its chevron expands machine/OS, logical CPUs, available RAM,
+normalized process CPU load, output count and reply timings directly underneath.
+There is no separate performance section in the sidebar. The panel supports
+keyboard scrolling and stays inside small windows without moving the composer.
+Escape or clicking outside closes it; changing the model clears old reply metrics.
+Missing measurements remain unknown; stopped replies have no final speed.
+See the pinned runtime’s `docs/INSTALL.md` for exact definitions. The surface is
+white with a light gray catalog and blue actions; green marks downloaded models.

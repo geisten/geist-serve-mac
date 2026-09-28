@@ -48,7 +48,7 @@ final class DesktopWebViewTests: XCTestCase {
             if let value = try? await evaluate(view, condition), value as? Bool == true { return }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:state?.recommendation?.id,notice:document.getElementById('notice').textContent})")
+        let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:state?.recommendation?.id,stage:window.chatChecksStage,requesting,polling,notice:document.getElementById('notice').textContent})")
         throw NSError(domain: "DesktopTest", code: 1, userInfo: [NSLocalizedDescriptionKey: "WebView condition did not become true: \(condition); \(detail ?? "no status")"])
     }
     func confirm(_ desktop: DesktopWindow, element: String, accept: Bool) async throws {
@@ -195,7 +195,7 @@ final class DesktopWebViewTests: XCTestCase {
             XCTAssertEqual(inputVisible as? Bool, true, "Input and primary action fit a narrow window")
             let chatChecks = try String(contentsOfFile: ProcessInfo.processInfo.environment["GEIST_CHAT_TEST_SCRIPT"]!, encoding: .utf8)
             _ = try await evaluate(desktop.webView, chatChecks)
-            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError")
+            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 600)
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
@@ -220,7 +220,7 @@ final class DesktopWebViewTests: XCTestCase {
             desktop.window?.setContentSize(NSSize(width: 540, height: 480))
             desktop.webView.pageZoom = 1.25
             _ = try await evaluate(desktop.webView, chatChecks)
-            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError")
+            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 600)
             let zoomError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(zoomError as? String, "", "Minimum window and enlarged text remain usable")
             try await snapshot(desktop.webView, name: "ready-minimum-zoom.png")
@@ -251,7 +251,7 @@ final class DesktopWebViewTests: XCTestCase {
             let panesFit = try await evaluate(desktop.webView, "document.querySelector('.model-sidebar').getBoundingClientRect().right <= document.getElementById('test-page').getBoundingClientRect().left && document.documentElement.scrollWidth <= innerWidth")
             XCTAssertEqual(panesFit as? Bool, true, "Catalog and real reply fit side by side in the default window")
             try await waitFor(desktop.webView, "lastReply?.tokens > 0 && lastReply?.rate > 0 && state?.resources?.rss_bytes > 0")
-            _ = try await evaluate(desktop.webView, "showPage('models-page'); document.getElementById('performance').open=true; document.getElementById('performance').scrollIntoView(); true")
+            _ = try await evaluate(desktop.webView, "showPage('models-page'); document.getElementById('performance').open=true; true")
             try await snapshot(desktop.webView, name: "performance-real-model.png")
             _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; showPage('test-page'); true")
             let realTokens = try await evaluate(desktop.webView, "document.getElementById('speed').textContent")

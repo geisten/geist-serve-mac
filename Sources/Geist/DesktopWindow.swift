@@ -60,7 +60,7 @@ enum DesktopLanguage {
         "Finish the current task, then reconnect to update Geist.": "Beende die laufende Aufgabe und verbinde dich erneut, um Geist zu aktualisieren.",
         "A newer Geist service is running. Open the newest installed app.": "Ein neuerer Geist-Dienst läuft. Öffne die neueste installierte App.",
         "Restart the older service to use this app.": "Starte den älteren Dienst neu, um diese App zu verwenden.",
-        "Models & performance": "Modelle & Leistung", "Connect a program": "Programm verbinden", "No model loaded": "Kein Modell geladen", "Model ready": "Modell bereit", "Preparing model…": "Modell wird vorbereitet…", "Model in use": "Modell wird verwendet",
+        "Models": "Modelle", "Connect a program": "Programm verbinden", "No model loaded": "Kein Modell geladen", "Model ready": "Modell bereit", "Preparing model…": "Modell wird vorbereitet…", "Model in use": "Modell wird verwendet",
         "Start Geist": "Geist starten", "Start at Login": "Bei Anmeldung starten", "Show Data Folder": "Datenordner anzeigen", "Check for Updates…": "Nach Updates suchen…", "Open Geist": "Geist öffnen", "Quit Geist": "Geist beenden", "Cancel": "Abbrechen",
         "Stop model service": "Modelldienst stoppen", "Stop model service?": "Modelldienst stoppen?",
         "Terminal and editor connections will stop too. Downloaded models are kept.": "Auch Terminal und Editoren werden getrennt. Heruntergeladene Modelle bleiben erhalten.",
