@@ -267,9 +267,7 @@ final class DesktopWebViewTests: XCTestCase {
             let restored = try await evaluate(desktop.webView, "document.documentElement.lang === 'de' && document.getElementById('language-choice').value === 'de' && document.getElementById('prompt').value === '' && conversation.length === 0 && !document.getElementById('result').children.length")
             XCTAssertEqual(restored as? Bool, true, "Preferences and consent persist, prompts do not")
             try await snapshot(desktop.webView, name: "ready-german.png")
-            _ = try await evaluate(desktop.webView, "document.getElementById('add-model').click(); true")
-            try await snapshot(desktop.webView, name: "model-catalog.png")
-            _ = try await evaluate(desktop.webView, "document.getElementById('close-catalog').click(); showPage('settings-page'); true")
+            _ = try await evaluate(desktop.webView, "showPage('settings-page'); true")
             try await snapshot(desktop.webView, name: "settings.png")
             _ = try await evaluate(desktop.webView, "showPage('models-page'); true")
             _ = try await evaluate(desktop.webView, "api('/app/connections').then(response => response.json()).then(c => window.testDaemonPID=c.daemon_pid); true")
@@ -286,18 +284,19 @@ final class DesktopWebViewTests: XCTestCase {
         }
         desktop.present(destination: .settings)
         try await waitFor(desktop.webView, "!document.getElementById('settings-page').hidden")
-        try await confirm(desktop, element: "quit", accept: false)
-        XCTAssertTrue(child.isRunning, "Cancelling the native confirmation preserves the service")
+        let simpleSettings = try await evaluate(desktop.webView, "!document.getElementById('quit') && !document.getElementById('unload')")
+        XCTAssertEqual(simpleSettings as? Bool, true, "Settings has no service lifecycle controls")
         desktop.close()
         XCTAssertTrue(child.isRunning, "Closing the window must preserve the shared service")
         desktop.present()
         XCTAssertTrue(desktop.window!.isVisible)
-        try await confirm(desktop, element: "quit", accept: true)
+        // Shut down the isolated fixture through its API; this is not an app UI action.
+        _ = try await evaluate(desktop.webView, "stopped=true; clearInterval(timer); api('/app/quit', {}).catch(() => {}); true")
         for _ in 0..<100 {
             if !child.isRunning { break }
             try await Task.sleep(nanoseconds: 50_000_000)
         }
-        XCTAssertFalse(child.isRunning, "Explicit confirmed service stop must reach the supervisor")
+        XCTAssertFalse(child.isRunning, "Fixture cleanup through the API must reach the supervisor")
         desktop.update(url: nil, status: "Local service stopped", working: false)
         XCTAssertTrue(desktop.webView.isHidden)
     }

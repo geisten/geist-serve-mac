@@ -29,18 +29,16 @@ The stop runs off the UI thread; a cancelled update cannot resume an old install
 Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
-The first screen shows locally downloaded models. **+ Model** opens the catalog
-with a platform-checked suggestion and a
-concise preview notice. Clicking a model name or download icon downloads and
+The first screen shows all catalog models, including missing downloads, with a
+platform-checked suggestion and a concise preview notice. Clicking a model name or download icon downloads and
 starts it; clicking an installed model starts it directly. Progress, pause and
 resume stay in the same row. There is no separate setup/start button. A smaller
-fallback is considered by the shared service. **Models** keeps the local library and **Quick test** in one view: side by side
+fallback is considered by the shared service. **Models** keeps the full model list and **Quick test** in one view: side by side
 in the default window, stacked in a narrow one, with independent scrolling.
 **Connect a program** opens editor setup. Each catalog row has a download ring:
 empty, percentage, paused, checking, or closed green with a check for downloaded.
 The running state and hardware suitability are separate. The metric row below the
-active model expands to show machine details and measurements in the same place. **Settings** is a separate tab with language, CPU execution information and advanced service
-controls. The gear opens settings directly. The interface follows the OS language
+active model expands to show machine details and measurements in the same place. **Settings** is a separate tab with language, CPU execution information and storage. The gear opens settings directly. The interface follows the OS language
 (German, otherwise English) until an explicit language is selected. **System language**
 restores automatic detection. This preference also updates native menu labels and
 survives reconnects; it does not translate existing input or model responses.
