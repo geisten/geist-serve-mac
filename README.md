@@ -31,8 +31,9 @@ Model policy is not duplicated in Swift. The bundled terminal client lives at
 
 The first screen offers one platform-checked model and **Set up and start**,
 with a concise preview notice. A smaller fallback is considered by the shared
-service. Once ready, **Models** remains the main view with **Connect a program**
-as the next action. **Change model** lists download rings before each model:
+service. **Models** keeps the catalog and **Quick test** in one view: side by side
+in the default window, stacked in a narrow one, with independent scrolling.
+**Connect a program** opens editor setup. Each catalog row has a download ring:
 empty, percentage, paused, checking, or closed green with a check for downloaded.
 The running state and hardware suitability are separate. **System & performance**
 opens machine details and measurements. **Settings** holds language and service
