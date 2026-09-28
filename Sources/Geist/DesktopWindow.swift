@@ -26,10 +26,29 @@ enum DesktopDestination: String {
     case models = "models-page", connect = "connect-page", test = "test-page"
 }
 
+enum DesktopLanguage {
+    static func resolve(preference: String?, system: String) -> String {
+        if preference == "de" || preference == "en" { return preference! }
+        let base = system.lowercased().components(separatedBy: CharacterSet(charactersIn: "-_.@")).first
+        return base == "de" ? "de" : "en"
+    }
+    static var preference: String {
+        let saved = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? "system"
+        return ["de", "en"].contains(saved) ? saved : "system"
+    }
+    static var system: String { resolve(preference: nil, system: Locale.preferredLanguages.first ?? "en") }
+    static var current: String { resolve(preference: preference, system: system) }
+    static var script: String {
+        // Both interpolated values are allowlisted, never raw locale or user input.
+        "window.geistSystemLanguage = '\(system)'; window.geistLanguagePreference = '\(preference)'; window.geistDesktop = 'mac';"
+    }
+}
+
 @MainActor func desktopText(_ english: String) -> String {
-    let language = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? Locale.preferredLanguages.first ?? "en"
-    guard language.hasPrefix("de") else { return english }
-    return ["Install Geist in Applications?": "Geist unter Programme installieren?",
+    guard DesktopLanguage.current == "de" else { return english }
+    return ["Update cancelled — could not stop the model service. Try Stop model service first.": "Update abgebrochen. Der Modelldienst konnte nicht gestoppt werden. Versuche zuerst „Modelldienst stoppen“.",
+        "Stopping model service before installing the update…": "Modelldienst wird vor dem Update gestoppt…",
+        "Install Geist in Applications?": "Geist unter Programme installieren?",
         "This replaces the previous app. Your models and settings are kept.": "Die bisherige App wird ersetzt. Modelle und Einstellungen bleiben erhalten.",
         "Install and open": "Installieren und öffnen", "Geist could not be installed": "Geist konnte nicht installiert werden",
         "The previous app is kept. Copy Geist to Applications in Finder, then open it there.": "Die bisherige App bleibt erhalten. Kopiere Geist im Finder nach Programme und öffne es dort.",
@@ -60,6 +79,8 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
     private let overlay = NSStackView()
     private let statusLabel = NSTextField(wrappingLabelWithString: "")
     private let retryButton = NSButton()
+    private let help = NSTextField(wrappingLabelWithString: "")
+    private var statusText = "Starting…"
     private let retry: () -> Void
     private let clipboard: NSPasteboard
     private(set) var origin: URL?
@@ -74,10 +95,8 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         configuration.websiteDataStore = .nonPersistent()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.preferences.tabFocusesLinks = true
-        let locale = UserDefaults.standard.string(forKey: "interfaceLanguage") ?? Locale.preferredLanguages.first ?? "en"
-        let language = locale.hasPrefix("de") ? "de" : "en"
         configuration.userContentController.addUserScript(WKUserScript(
-            source: "window.geistLanguage = '\(language)'; window.geistDesktop = 'mac';",
+            source: DesktopLanguage.script,
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView = WKWebView(frame: .zero, configuration: configuration)
         let size = DesktopPolicy.initialSize(visible: NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800))
@@ -86,7 +105,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         window.title = "Geist"
         window.minSize = NSSize(width: 540, height: 480)
         window.titlebarSeparatorStyle = .none
-        window.backgroundColor = NSColor(srgbRed: 250/255, green: 248/255, blue: 242/255, alpha: 1)
+        window.backgroundColor = .white
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
@@ -110,7 +129,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         retryButton.bezelStyle = .rounded
         overlay.addArrangedSubview(statusLabel)
         overlay.addArrangedSubview(retryButton)
-        let help = NSTextField(wrappingLabelWithString: desktopText("Closing this window keeps the model service available to your tools."))
+        help.stringValue = desktopText("Closing this window keeps the model service available to your tools.")
         help.alignment = .center
         help.textColor = .secondaryLabelColor
         overlay.addArrangedSubview(help)
@@ -134,6 +153,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         NSApp.activate(ignoringOtherApps: true)
     }
     func update(url: URL?, status: String, working: Bool) {
+        statusText = status
         statusLabel.stringValue = desktopText(status)
         retryButton.isEnabled = !working
         guard let url else {
@@ -164,7 +184,8 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
     }
     private func failed() {
         loaded = nil; navigationReady = false
-        statusLabel.stringValue = desktopText("The interface could not be loaded. Try reconnecting.")
+        statusText = "The interface could not be loaded. Try reconnecting."
+        statusLabel.stringValue = desktopText(statusText)
         retryButton.isEnabled = true
         webView.isHidden = true; overlay.isHidden = false
     }
@@ -197,13 +218,16 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
               let body = message.body as? [String: String] else { replyHandler(nil, "Denied"); return }
         switch body["action"] {
         case "language":
-            guard let value = body["value"], ["de", "en"].contains(value) else { replyHandler(nil, "Invalid language"); return }
+            guard let value = body["value"], ["system", "de", "en"].contains(value) else { replyHandler(nil, "Invalid language"); return }
             UserDefaults.standard.set(value, forKey: "interfaceLanguage")
+            retryButton.title = desktopText("Start / reconnect")
+            help.stringValue = desktopText("Closing this window keeps the model service available to your tools.")
+            statusLabel.stringValue = desktopText(statusText)
             // The same ephemeral WebView can reconnect after a service restart.
             // Future documents must receive the latest bounded preference.
             controller.removeAllUserScripts()
             controller.addUserScript(WKUserScript(
-                source: "window.geistLanguage = '\(value)'; window.geistDesktop = 'mac';",
+                source: DesktopLanguage.script,
                 injectionTime: .atDocumentStart, forMainFrameOnly: true))
         case "copy":
             guard let value = body["value"], value.utf8.count <= 131072 else { replyHandler(nil, "Text too large"); return }

@@ -5,6 +5,18 @@ import XCTest
 @testable import Geist
 
 final class DesktopPolicyTests: XCTestCase {
+    func testSystemLanguageAndManualOverride() {
+        for locale in ["de", "de-DE", "de_AT.UTF-8", "DE-ch", "de@euro"] {
+            XCTAssertEqual(DesktopLanguage.resolve(preference: "system", system: locale), "de")
+        }
+        for locale in ["en-US", "fr-FR", "debug", ""] {
+            XCTAssertEqual(DesktopLanguage.resolve(preference: nil, system: locale), "en")
+        }
+        XCTAssertEqual(DesktopLanguage.resolve(preference: "en", system: "de-DE"), "en")
+        XCTAssertEqual(DesktopLanguage.resolve(preference: "de", system: "en-US"), "de")
+        XCTAssertEqual(DesktopLanguage.resolve(preference: "invalid", system: "de-DE"), "de")
+    }
+
     func testPrivateOriginAndExternalNavigation() {
         let origin = URL(string: "http://127.0.0.1:18766/#" + String(repeating: "a", count: 64))!
         XCTAssertTrue(DesktopPolicy.local(origin, origin: origin))
@@ -93,6 +105,7 @@ final class DesktopWebViewTests: XCTestCase {
             if let previousLanguage { UserDefaults.standard.set(previousLanguage, forKey: "interfaceLanguage") }
             else { UserDefaults.standard.removeObject(forKey: "interfaceLanguage") }
         }
+        UserDefaults.standard.set("en", forKey: "interfaceLanguage")
         let child = Process()
         child.executableURL = URL(fileURLWithPath: runtime).appendingPathComponent("geist-app")
         child.arguments = ["--home", home.path, "--port", "0", "--daemon", model == nil ? "/usr/bin/false" : URL(fileURLWithPath: runtime).appendingPathComponent("geistd").path]
@@ -119,6 +132,17 @@ final class DesktopWebViewTests: XCTestCase {
         try await waitFor(desktop.webView, "tasks.length === 5 && selectedTask?.id === 'freeform'")
         let startsInManager = try await evaluate(desktop.webView, "!document.getElementById('models-page').hidden && !document.getElementById('test-page').hidden")
         XCTAssertEqual(startsInManager as? Bool, true)
+        _ = try await evaluate(desktop.webView, "document.getElementById('ui-language').value='system'; document.getElementById('ui-language').dispatchEvent(new Event('change')); true")
+        try await waitFor(desktop.webView, "interfacePreference === 'system' && document.documentElement.lang === resolveLanguage('system', window.geistSystemLanguage)")
+        for _ in 0..<100 {
+            if UserDefaults.standard.string(forKey: "interfaceLanguage") == "system" { break }
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "interfaceLanguage"), "system")
+        _ = try await evaluate(desktop.webView, "window.beforeLanguageReload=true; true")
+        desktop.webView.reload()
+        try await waitFor(desktop.webView, "typeof window.beforeLanguageReload === 'undefined' && typeof state !== 'undefined' && state && document.getElementById('ui-language').value === 'system' && document.documentElement.lang === resolveLanguage('system', window.geistSystemLanguage)")
+        _ = try await evaluate(desktop.webView, "document.getElementById('ui-language').value='en'; document.getElementById('ui-language').dispatchEvent(new Event('change')); true")
         _ = try await evaluate(desktop.webView, "window.routeSentinel=42; document.getElementById('prompt').value='Retained across native menus'; true")
         desktop.present(destination: .connect)
         try await waitFor(desktop.webView, "!document.getElementById('connect-page').hidden")

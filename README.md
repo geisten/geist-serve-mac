@@ -37,7 +37,12 @@ in the default window, stacked in a narrow one, with independent scrolling.
 empty, percentage, paused, checking, or closed green with a check for downloaded.
 The running state and hardware suitability are separate. **System & performance**
 opens machine details and measurements. **Settings** holds language and service
-controls. The native menu shows the active model and status and offers direct
+controls. The gear opens settings directly. The interface follows the OS language
+(German, otherwise English) until an explicit language is selected. **System language**
+restores automatic detection. This preference also updates native menu labels and
+survives reconnects; it does not translate existing input or model responses.
+The white interface uses labeled icons for common actions and keeps model speed,
+RAM and file size beside the active model. The native menu shows the active model and status and offers direct
 **Models & performance** and **Connect a program** routes without reloading.
 
 **Quick test** is optional. Enter sends, Shift + Enter inserts a newline, and

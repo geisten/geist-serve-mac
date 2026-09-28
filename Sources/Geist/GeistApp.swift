@@ -8,7 +8,9 @@ import SwiftUI
 @main
 struct GeistApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @AppStorage("interfaceLanguage") private var interfacePreference = "system"
     var body: some Scene {
+        let _ = interfacePreference // Refresh menu labels when the shared interface preference changes.
         MenuBarExtra("Geist", systemImage: "waveform.circle") {
             Text(desktopText(delegate.runtime.status))
                 .onAppear { delegate.runtime.refresh() }
@@ -151,7 +153,7 @@ final class ApplicationProcess {
     func start() {
         guard !working else { return }
         working = true
-        status = desktopText("Starting local service…")
+        status = "Starting local service…"
         changed()
         if showsWindow { desktop.present() }
         if monitor == nil {
