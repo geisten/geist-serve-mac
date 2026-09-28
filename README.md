@@ -129,10 +129,11 @@ gate. The default window is at most 780 × 620 points and scales down on smaller
 screens. Download speed and remaining time are estimates from recent bytes
 received in the current window, not throughput guarantees.
 
-### Chat performance
+### Model performance
 
-The chat footer shows tokens/s for the last completed reply and the current
-resident RAM of the shared model process. **System & performance** opens the
+The Models view shows tokens/s for the last completed test reply and the current
+resident RAM of the shared model process. The optional Quick test repeats those
+values below its input. **System & performance**, below the model, opens the
 machine/OS, logical CPUs, available RAM, normalized process CPU load, output
 count and reply timings. The expandable panel supports keyboard scrolling and
 small windows. Missing measurements remain unknown; stopped replies have no
