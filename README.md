@@ -30,15 +30,18 @@ Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
 The first screen shows all catalog models, including missing downloads, with a
-platform-checked suggestion and a concise preview notice. Clicking a model name or download icon downloads and
-starts it; clicking an installed model starts it directly. Progress, pause and
-resume stay in the same row. There is no separate setup/start button. A smaller
-fallback is considered by the shared service. **Models** keeps the full model list and **Quick test** in one view: side by side
-in the default window, stacked in a narrow one, with independent scrolling.
-**Connect a program** opens editor setup. Each catalog row has a download ring:
-empty, percentage, paused, checking, or closed green with a check for downloaded.
-The running state and hardware suitability are separate. The metric row below the
-active model expands to show machine details and measurements in the same place. **Settings** is a separate tab with language, CPU execution information and storage. The gear opens settings directly. The interface follows the OS language
+platform-checked suggestion ordered first. Clicking a model name or its leading
+symbol downloads and starts it; installed models start directly. The leading arrow
+becomes a progress ring with pause/resume, then a closed green check ring. There is
+no second action arrow, setup button or per-row details section. Suitability uses
+chip/check, warning or unavailable symbols with accessible descriptions; capability
+badges reflect only features actually implemented by the service (currently text).
+
+**Models** keeps the complete list and **Quick test** together: side by side in the
+default window, stacked in narrow ones, with independent scrolling. The test pane
+is white and the list light gray. **Connect a program** opens editor setup.
+The metric row below the active model expands machine and response measurements.
+**Settings** is a separate tab with language, CPU execution information and storage. The gear opens settings directly. The interface follows the OS language
 (German, otherwise English) until an explicit language is selected. **System language**
 restores automatic detection. This preference also updates native menu labels and
 survives reconnects; it does not translate existing input or model responses.
@@ -151,5 +154,5 @@ white with a light gray catalog and blue actions; green marks downloaded models.
 
 Model rows expose removal of local files without removing the catalog choice.
 An idle active model is stopped as part of confirmed deletion; busy work blocks
-deletion. Amber rings identify resource constraints with an accompanying reason.
+deletion. Suitability badges identify resource constraints, with tooltip and accessible descriptions.
 The active model header has a status dot; the composer holds the test-reset action.

@@ -159,6 +159,8 @@ final class DesktopWebViewTests: XCTestCase {
         desktop.window?.appearance = NSAppearance(named: .darkAqua)
         try await waitFor(desktop.webView, "matchMedia('(prefers-color-scheme: dark)').matches")
         try await snapshot(desktop.webView, name: "setup-dark.png")
+        let whiteTestPane = try await evaluate(desktop.webView, "getComputedStyle(document.getElementById('test-page')).backgroundColor === 'rgb(255, 255, 255)'")
+        XCTAssertEqual(whiteTestPane as? Bool, true, "The test pane remains white even under dark OS appearance")
         desktop.window?.appearance = NSAppearance(named: .aqua)
         let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup-start') && document.querySelectorAll('.model-pick').length === 6 && state.models.every(m => !m.preview_accepted)")
         XCTAssertEqual(initial as? Bool, true, "Preview requires a deliberate model click")
