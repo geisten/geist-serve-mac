@@ -29,6 +29,13 @@ for binary in geist geist-app geistd; do
     if otool -L "$input_binary" | grep -q '/opt/homebrew\|/usr/local/'; then
         echo "Runtime depends on a developer installation: $binary" >&2; exit 1
     fi
-    cp "$input_binary" "build/$binary"
+    # Replace the inode instead of overwriting an executable that a previous
+    # native test may still have mapped. macOS caches code signatures by vnode.
+    temporary=$(mktemp "build/.runtime-${binary}.XXXXXX")
+    trap 'rm -f "$temporary"' EXIT HUP INT TERM
+    cp "$input_binary" "$temporary"
+    chmod 755 "$temporary"
+    mv "$temporary" "build/$binary"
+    trap - EXIT HUP INT TERM
 done
 shasum -a 256 build/geist build/geist-app build/geistd > build/RUNTIME-SHA256SUMS

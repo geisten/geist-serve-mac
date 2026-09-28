@@ -36,16 +36,35 @@ final class DesktopPolicyTests: XCTestCase {
 @MainActor
 final class DesktopWebViewTests: XCTestCase {
     func evaluate(_ view: WKWebView, _ script: String) async throws -> Any? {
-        try await withCheckedThrowingContinuation { continuation in
+        var finished = false
+        return try await withCheckedThrowingContinuation { continuation in
+            let deadline = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                guard !finished else { return }
+                finished = true
+                continuation.resume(throwing: NSError(domain: "DesktopTest", code: 5,
+                    userInfo: [NSLocalizedDescriptionKey: "JavaScript evaluation timed out: " + String(script.prefix(100))]))
+            }
             view.evaluateJavaScript(script) { value, error in
+                guard !finished else { return }
+                finished = true
+                deadline.cancel()
                 if let error { continuation.resume(throwing: error) }
                 else { continuation.resume(returning: value) }
             }
         }
     }
     func waitFor(_ view: WKWebView, _ condition: String, timeout: Int = 200) async throws {
-        for _ in 0..<timeout {
-            if let value = try? await evaluate(view, condition), value as? Bool == true { return }
+        let deadline = Date().addingTimeInterval(Double(timeout) / 10)
+        var attempt = 0
+        while Date() < deadline {
+            defer { attempt += 1 }
+            if attempt % 20 == 0, let directory = ProcessInfo.processInfo.environment["GEIST_DESKTOP_EVIDENCE"] {
+                let detail = try? await evaluate(view, "JSON.stringify({stage:window.chatChecksStage,error:window.chatChecksError,requesting:typeof requesting!=='undefined'&&requesting,polling:typeof polling!=='undefined'&&polling})")
+                let line = "Waiting: \(condition)\n\(detail ?? "No script state")\n"
+                try? line.write(toFile: directory + "/waiting.txt", atomically: true, encoding: .utf8)
+            }
+            if let value = try await evaluate(view, condition), value as? Bool == true { return }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
         let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:state?.recommendation?.id,stage:window.chatChecksStage,requesting,polling,notice:document.getElementById('notice').textContent})")
@@ -110,7 +129,17 @@ final class DesktopWebViewTests: XCTestCase {
         child.executableURL = URL(fileURLWithPath: runtime).appendingPathComponent("geist-app")
         child.arguments = ["--home", home.path, "--port", "0", "--daemon", model == nil ? "/usr/bin/false" : URL(fileURLWithPath: runtime).appendingPathComponent("geistd").path]
         child.standardOutput = FileHandle.nullDevice
-        child.standardError = FileHandle.nullDevice
+        let runtimeLog = home.appendingPathComponent("native-runtime.log")
+        FileManager.default.createFile(atPath: runtimeLog.path, contents: nil)
+        let logHandle = try FileHandle(forWritingTo: runtimeLog)
+        child.standardError = logHandle
+        defer {
+            try? logHandle.close()
+            if let directory = ProcessInfo.processInfo.environment["GEIST_DESKTOP_EVIDENCE"] {
+                try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+                try? FileManager.default.copyItem(at: runtimeLog, to: URL(fileURLWithPath: directory).appendingPathComponent("native-runtime.log"))
+            }
+        }
         try child.run()
         defer { if child.isRunning { child.terminate(); child.waitUntilExit() } }
         let descriptor = home.appendingPathComponent("connection.json")
@@ -200,6 +229,10 @@ final class DesktopWebViewTests: XCTestCase {
             try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 600)
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
+            if let failure = chatError as? String, !failure.isEmpty {
+                try await snapshot(desktop.webView, name: "interaction-failure.png")
+                throw NSError(domain: "DesktopTest", code: 4, userInfo: [NSLocalizedDescriptionKey: failure])
+            }
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
             for target in ["document.querySelector('#chat-help summary')", "document.getElementById('new-chat')", "document.getElementById('run')"] {
                 let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -255,6 +288,18 @@ final class DesktopWebViewTests: XCTestCase {
             try await waitFor(desktop.webView, "lastReply?.tokens > 0 && lastReply?.rate > 0 && state?.resources?.rss_bytes > 0")
             _ = try await evaluate(desktop.webView, "showPage('models-page'); document.getElementById('performance').open=true; true")
             try await snapshot(desktop.webView, name: "performance-real-model.png")
+            let hasGPU = try await evaluate(desktop.webView, "state.execution.gpu_available")
+            if hasGPU as? Bool == true {
+                _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; window.retainedTranscript=document.getElementById('result').innerHTML; document.getElementById('prompt').value='Draft across a real GPU reload'; document.querySelector('[name=execution][value=gpu]').click(); true")
+                try await waitFor(desktop.webView, "!requesting && state?.ready && state.execution.active==='gpu'", timeout: 900)
+                let retained = try await evaluate(desktop.webView, "!document.getElementById('workspace').hidden && document.getElementById('prompt').value==='Draft across a real GPU reload' && document.getElementById('result').innerHTML===window.retainedTranscript")
+                XCTAssertEqual(retained as? Bool, true, "Real GPU reload keeps transcript and draft")
+                _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Say hello in one short sentence.'; document.getElementById('task-form').requestSubmit(); true")
+                try await waitFor(desktop.webView, "!controller && state.performance_history.length===2 && state.performance_history.every(sample=>sample.rate>0)", timeout: 900)
+                try await snapshot(desktop.webView, name: "cpu-gpu-comparison.png")
+                _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; document.querySelector('.processor-history').scrollIntoView({block:'nearest'}); true")
+                try await snapshot(desktop.webView, name: "cpu-gpu-details.png")
+            }
             _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; showPage('test-page'); true")
             let realTokens = try await evaluate(desktop.webView, "document.getElementById('speed').textContent")
             XCTAssertFalse((realTokens as? String ?? "—").contains("—"), "A real response must include final generation metrics")
@@ -287,6 +332,10 @@ final class DesktopWebViewTests: XCTestCase {
             }
 
             _ = try await evaluate(desktop.webView, "showPage('models-page'); true")
+            // The GPU crash path intentionally recovers to CPU. Exercise the
+            // nonrecovering CPU exit here so the removal check has a stopped model.
+            _ = try await evaluate(desktop.webView, "document.querySelector('[name=execution][value=cpu]').click(); true")
+            try await waitFor(desktop.webView, "!requesting && state?.ready && state.execution.active==='cpu'", timeout: 900)
             _ = try await evaluate(desktop.webView, "api('/app/connections').then(response => response.json()).then(c => window.testDaemonPID=c.daemon_pid); true")
             try await waitFor(desktop.webView, "window.testDaemonPID > 0")
             let daemon = try await evaluate(desktop.webView, "window.testDaemonPID") as! Int
