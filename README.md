@@ -29,9 +29,11 @@ The stop runs off the UI thread; a cancelled update cannot resume an old install
 Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
-The first screen offers one platform-checked model and **Set up and start**,
-with a concise preview notice. A smaller fallback is considered by the shared
-service. **Models** keeps the catalog and **Quick test** in one view: side by side
+The first screen shows the catalog with a platform-checked suggestion and a
+concise preview notice. Clicking a model name or download icon downloads and
+starts it; clicking an installed model starts it directly. Progress, pause and
+resume stay in the same row. There is no separate setup/start button. A smaller
+fallback is considered by the shared service. **Models** keeps the catalog and **Quick test** in one view: side by side
 in the default window, stacked in a narrow one, with independent scrolling.
 **Connect a program** opens editor setup. Each catalog row has a download ring:
 empty, percentage, paused, checking, or closed green with a check for downloaded.

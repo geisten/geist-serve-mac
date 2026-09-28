@@ -48,7 +48,7 @@ final class DesktopWebViewTests: XCTestCase {
             if let value = try? await evaluate(view, condition), value as? Bool == true { return }
             try await Task.sleep(nanoseconds: 100_000_000)
         }
-        let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:setupCandidate()?.id,notice:document.getElementById('notice').textContent})")
+        let detail = try? await evaluate(view, "JSON.stringify({ready:state?.ready,busy:state?.busy,phase:state?.phase,message:state?.message,candidate:state?.recommendation?.id,notice:document.getElementById('notice').textContent})")
         throw NSError(domain: "DesktopTest", code: 1, userInfo: [NSLocalizedDescriptionKey: "WebView condition did not become true: \(condition); \(detail ?? "no status")"])
     }
     func confirm(_ desktop: DesktopWindow, element: String, accept: Bool) async throws {
@@ -160,8 +160,8 @@ final class DesktopWebViewTests: XCTestCase {
         try await waitFor(desktop.webView, "matchMedia('(prefers-color-scheme: dark)').matches")
         try await snapshot(desktop.webView, name: "setup-dark.png")
         desktop.window?.appearance = NSAppearance(named: .aqua)
-        let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup').hidden && state.models.every(m => !m.preview_accepted)")
-        XCTAssertEqual(initial as? Bool, true, "Preview requires deliberate setup action")
+        let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup-start') && document.querySelectorAll('.model-pick').length === 6 && state.models.every(m => !m.preview_accepted)")
+        XCTAssertEqual(initial as? Bool, true, "Preview requires a deliberate model click")
         _ = try await evaluate(desktop.webView, "showPage('test-page'); true")
         let testVisible = try await evaluate(desktop.webView, "!document.getElementById('test-page').hidden")
         XCTAssertEqual(testVisible as? Bool, true)
@@ -180,7 +180,7 @@ final class DesktopWebViewTests: XCTestCase {
         try await waitFor(desktop.webView, "window.copyDone")
         XCTAssertEqual(clipboard.string(forType: .string), "Desktop clipboard check")
         if model != nil {
-            _ = try await evaluate(desktop.webView, "document.querySelector('[data-id=\"smollm2-360m\"] button').click(); document.getElementById('setup-start').click(); true")
+            _ = try await evaluate(desktop.webView, "document.querySelector('[data-id=\"smollm2-360m\"] .model-name').click(); true")
             try await waitFor(desktop.webView, "state?.ready === true && !document.getElementById('workspace').hidden", timeout: 600)
             let managerVisible = try await evaluate(desktop.webView, "!document.getElementById('models-page').hidden && !document.getElementById('test-page').hidden")
             XCTAssertEqual(managerVisible as? Bool, true, "Setup retains the catalog beside the short test")
