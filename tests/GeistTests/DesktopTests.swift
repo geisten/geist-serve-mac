@@ -199,7 +199,7 @@ final class DesktopWebViewTests: XCTestCase {
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
-            for target in ["document.querySelector('#chat-help summary')", "document.getElementById('run')"] {
+            for target in ["document.querySelector('#chat-help summary')", "document.getElementById('new-chat')", "document.getElementById('run')"] {
                 let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
                     windowNumber: desktop.window!.windowNumber, context: nil, characters: "\t",
                     charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
@@ -267,6 +267,11 @@ final class DesktopWebViewTests: XCTestCase {
             let restored = try await evaluate(desktop.webView, "document.documentElement.lang === 'de' && document.getElementById('language-choice').value === 'de' && document.getElementById('prompt').value === '' && conversation.length === 0 && !document.getElementById('result').children.length")
             XCTAssertEqual(restored as? Bool, true, "Preferences and consent persist, prompts do not")
             try await snapshot(desktop.webView, name: "ready-german.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('add-model').click(); true")
+            try await snapshot(desktop.webView, name: "model-catalog.png")
+            _ = try await evaluate(desktop.webView, "document.getElementById('close-catalog').click(); showPage('settings-page'); true")
+            try await snapshot(desktop.webView, name: "settings.png")
+            _ = try await evaluate(desktop.webView, "showPage('models-page'); true")
             _ = try await evaluate(desktop.webView, "api('/app/connections').then(response => response.json()).then(c => window.testDaemonPID=c.daemon_pid); true")
             try await waitFor(desktop.webView, "window.testDaemonPID > 0")
             let daemon = try await evaluate(desktop.webView, "window.testDaemonPID") as! Int
@@ -279,6 +284,8 @@ final class DesktopWebViewTests: XCTestCase {
             try await waitFor(desktop.webView, "state.models.find(model => model.id === 'smollm2-360m').installed === false")
             XCTAssertFalse(FileManager.default.fileExists(atPath: home.appendingPathComponent("models/smollm2-360m-instruct-q8_0.gguf").path))
         }
+        desktop.present(destination: .settings)
+        try await waitFor(desktop.webView, "!document.getElementById('settings-page').hidden")
         try await confirm(desktop, element: "quit", accept: false)
         XCTAssertTrue(child.isRunning, "Cancelling the native confirmation preserves the service")
         desktop.close()

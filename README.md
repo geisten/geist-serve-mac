@@ -29,23 +29,24 @@ The stop runs off the UI thread; a cancelled update cannot resume an old install
 Model policy is not duplicated in Swift. The bundled terminal client lives at
 `Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
-The first screen shows the catalog with a platform-checked suggestion and a
+The first screen shows locally downloaded models. **+ Model** opens the catalog
+with a platform-checked suggestion and a
 concise preview notice. Clicking a model name or download icon downloads and
 starts it; clicking an installed model starts it directly. Progress, pause and
 resume stay in the same row. There is no separate setup/start button. A smaller
-fallback is considered by the shared service. **Models** keeps the catalog and **Quick test** in one view: side by side
+fallback is considered by the shared service. **Models** keeps the local library and **Quick test** in one view: side by side
 in the default window, stacked in a narrow one, with independent scrolling.
 **Connect a program** opens editor setup. Each catalog row has a download ring:
 empty, percentage, paused, checking, or closed green with a check for downloaded.
 The running state and hardware suitability are separate. The metric row below the
-active model expands to show machine details and measurements in the same place. **Settings** holds language and service
+active model expands to show machine details and measurements in the same place. **Settings** is a separate tab with language, CPU execution information and advanced service
 controls. The gear opens settings directly. The interface follows the OS language
 (German, otherwise English) until an explicit language is selected. **System language**
 restores automatic detection. This preference also updates native menu labels and
 survives reconnects; it does not translate existing input or model responses.
 The white interface uses labeled icons for common actions and keeps model speed,
 RAM and file size beside the active model. The native menu shows the active model and status and offers direct
-**Models** and **Connect a program** routes without reloading.
+**Models**, **Settings** (⌘,) and **Connect a program** route without reloading.
 
 **Quick test** is optional. Enter sends, Shift + Enter inserts a newline, and
 follow-ups use this window's conversation. Explicit model choices, answer language
@@ -149,3 +150,8 @@ Escape or clicking outside closes it; changing the model clears old reply metric
 Missing measurements remain unknown; stopped replies have no final speed.
 See the pinned runtime’s `docs/INSTALL.md` for exact definitions. The surface is
 white with a light gray catalog and blue actions; green marks downloaded models.
+
+Model rows expose removal of local files without removing the catalog choice.
+An idle active model is stopped as part of confirmed deletion; busy work blocks
+deletion. Amber rings identify resource constraints with an accompanying reason.
+The active model header has a status dot; the composer holds the test-reset action.

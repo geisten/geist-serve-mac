@@ -19,6 +19,8 @@ struct GeistApp: App {
 
                 .keyboardShortcut("o")
             Button(desktopText("Connect a program")) { delegate.runtime.open(destination: .connect) }
+            Button(desktopText("Settings")) { delegate.runtime.open(destination: .settings) }
+                .keyboardShortcut(",")
             if !delegate.runtime.running {
                 Button(desktopText("Start Geist")) { delegate.runtime.start() }
             }
