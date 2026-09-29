@@ -157,7 +157,7 @@ final class DesktopWebViewTests: XCTestCase {
         desktop.present()
         XCTAssertTrue(desktop.window!.isVisible)
         XCTAssertFalse(desktop.webView.configuration.websiteDataStore.isPersistent)
-        try await waitFor(desktop.webView, "document.querySelectorAll('.model').length === 6")
+        try await waitFor(desktop.webView, "typeof state !== 'undefined' && state?.models.length > 0 && document.querySelectorAll('.model').length === state.models.length")
         try await waitFor(desktop.webView, "tasks.length === 5 && selectedTask?.id === 'freeform'")
         let startsInManager = try await evaluate(desktop.webView, "!document.getElementById('models-page').hidden && !document.getElementById('test-page').hidden")
         XCTAssertEqual(startsInManager as? Bool, true)
@@ -191,7 +191,7 @@ final class DesktopWebViewTests: XCTestCase {
         let whiteTestPane = try await evaluate(desktop.webView, "getComputedStyle(document.getElementById('test-page')).backgroundColor === 'rgb(255, 255, 255)'")
         XCTAssertEqual(whiteTestPane as? Bool, true, "The test pane remains white even under dark OS appearance")
         desktop.window?.appearance = NSAppearance(named: .aqua)
-        let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup-start') && document.querySelectorAll('.model-pick').length === 6 && state.models.every(m => !m.preview_accepted)")
+        let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup-start') && document.querySelectorAll('.model-pick').length === state.models.length && state.models.every(m => !m.preview_accepted)")
         XCTAssertEqual(initial as? Bool, true, "Preview requires a deliberate model click")
         _ = try await evaluate(desktop.webView, "showPage('test-page'); true")
         let testVisible = try await evaluate(desktop.webView, "!document.getElementById('test-page').hidden")
@@ -217,6 +217,11 @@ final class DesktopWebViewTests: XCTestCase {
             XCTAssertEqual(managerVisible as? Bool, true, "Setup retains the catalog beside the short test")
             _ = try await evaluate(desktop.webView, "document.getElementById('model-chooser').scrollIntoView({block:'nearest'}); true")
             try await snapshot(desktop.webView, name: "models-downloaded.png")
+            // Controlled slow-CPU fixture, not a measured benchmark. The real
+            // model remains loaded; only the displayed status is substituted.
+            _ = try await evaluate(desktop.webView, "window.beforeWarning=state; render({...state,execution:{...state.execution,active:'cpu',performance:{target_tps:8,below_target:true,rate:3}}}); true")
+            try await snapshot(desktop.webView, name: "slow-cpu-warning-fixture.png")
+            _ = try await evaluate(desktop.webView, "render(window.beforeWarning); true")
             // Illustrative transfer states only; real model/download evidence is separate.
             _ = try await evaluate(desktop.webView, "window.downloadFixture=document.createElement('div'); downloadFixture.id='download-fixture'; document.getElementById('model-chooser').prepend(downloadFixture); for (const stage of ['missing','downloading','paused','verifying','downloaded']) { const row=document.createElement('div'); row.className='model-heading'; row.style.marginBottom='16px'; const ring=document.createElement('span'); ring.className='model-ring'; const label=document.createElement('span'); const m={id:'fixture', name:'Download state fixture', bytes:100, installed:stage==='downloaded', partial:stage==='paused'?25:0}; const status=renderRing(ring,m,{job_model:'fixture', phase:stage==='downloading'||stage==='verifying'?stage:'', received:50}); label.textContent=t(status.text); row.append(ring,label); downloadFixture.append(row); } downloadFixture.scrollIntoView(); true")
             try await snapshot(desktop.webView, name: "download-states-fixture.png")
@@ -225,14 +230,38 @@ final class DesktopWebViewTests: XCTestCase {
             let inputVisible = try await evaluate(desktop.webView, "document.getElementById('run').getBoundingClientRect().bottom < innerHeight")
             XCTAssertEqual(inputVisible as? Bool, true, "Input and primary action fit a narrow window")
             let chatChecks = try String(contentsOfFile: ProcessInfo.processInfo.environment["GEIST_CHAT_TEST_SCRIPT"]!, encoding: .utf8)
+            _ = try await evaluate(desktop.webView, "window.captureBackgroundUX=true; true")
             _ = try await evaluate(desktop.webView, chatChecks)
+            try await waitFor(desktop.webView, "window.backgroundUXReady || !!window.chatChecksError", timeout: 600)
+            try await snapshot(desktop.webView, name: "background-chat-download-fixture.png")
+            _ = try await evaluate(desktop.webView, "window.captureBackgroundUX=false; true")
             try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 600)
             let chatError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
+            if let directory = ProcessInfo.processInfo.environment["GEIST_DESKTOP_EVIDENCE"],
+               let motion = try await evaluate(desktop.webView, "JSON.stringify(window.downloadRingMotionEvidence || null)") as? String {
+                try motion.write(toFile: directory + "/download-ring-motion.json", atomically: true, encoding: .utf8)
+            }
             XCTAssertEqual(chatError as? String, "", "Session chat interactions and failure states")
             if let failure = chatError as? String, !failure.isEmpty {
                 try await snapshot(desktop.webView, name: "interaction-failure.png")
                 throw NSError(domain: "DesktopTest", code: 4, userInfo: [NSLocalizedDescriptionKey: failure])
             }
+            // Real WKWebView reflow checks. These are viewport checks, not phone OS acceptance.
+            let priorSize = desktop.window!.contentView!.frame.size
+            let priorMinimum = desktop.window!.contentMinSize
+            desktop.window?.contentMinSize = NSSize(width: 300, height: 400)
+            for (width, zoom) in [(320.0, 1.0), (390.0, 1.0), (780.0, 2.0), (780.0, 1.0)] {
+                desktop.webView.pageZoom = zoom
+                desktop.window?.setContentSize(NSSize(width: width, height: 800))
+                try await Task.sleep(nanoseconds: 200_000_000)
+                let fits = try await evaluate(desktop.webView, "document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.model-pick')].every(e=>e.clientWidth>=44 && e.clientHeight>=44 && e.scrollWidth<=e.clientWidth+1) && [...document.querySelectorAll('.model-group')].every(e=>e.scrollWidth<=e.clientWidth+1)")
+                XCTAssertEqual(fits as? Bool, true, "Visible variants reflow at \(width) px and zoom \(zoom)")
+                _ = try await evaluate(desktop.webView, "(()=>{const group=document.querySelector('[data-group=\"qwen38-27b\"]'); const pane=document.querySelector('.model-sidebar'); pane.scrollTop=group.getBoundingClientRect().top-pane.getBoundingClientRect().top+pane.scrollTop; return true;})()")
+                try await snapshot(desktop.webView, name: "variants-\(Int(width))-zoom-\(zoom).png")
+            }
+            desktop.webView.pageZoom = 1
+            desktop.window?.contentMinSize = priorMinimum
+            desktop.window?.setContentSize(priorSize)
             _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Keyboard draft'; document.getElementById('prompt').dispatchEvent(new Event('input')); document.getElementById('prompt').focus(); true")
             for target in ["document.querySelector('#chat-help summary')", "document.getElementById('new-chat')", "document.getElementById('run')"] {
                 let tab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
@@ -251,12 +280,24 @@ final class DesktopWebViewTests: XCTestCase {
             _ = try await evaluate(desktop.webView, "document.querySelector('.code-toolbar button').click(); true")
             try await Task.sleep(nanoseconds: 100_000_000)
             XCTAssertEqual(clipboard.string(forType: .string), "print(\"Runs here. Stays here.\")", "Copy code uses only code contents")
+            _ = try await evaluate(desktop.webView, #"document.getElementById('result').replaceChildren(); window.mathFixture = [String.raw`**$\rightarrow$ Anforderungen $\rightarrow$ Design/Konzept $\rightarrow$ Implementierung.**`, String.raw`Energie: $E=mc^2$ · Verhältnis: $\frac{a}{b}$`, String.raw`$$\sum_{i=1}^{n}i=\frac{n(n+1)}{2}$$`, String.raw`$$\begin{pmatrix}1&2\\3&4\end{pmatrix}$$`].join('\n\n'); window.mathTurn=addTurn('Pfeile und Formeln'); updateMarkdown(mathTurn.output,mathFixture); mathTurn.status.textContent=''; mathTurn.copy.disabled=false; document.getElementById('transcript').scrollTop=0; true"#)
+            try await snapshot(desktop.webView, name: "math-fixture.png")
+            _ = try await evaluate(desktop.webView, "window.mathTurn.copy.click(); true")
+            try await Task.sleep(nanoseconds: 100_000_000)
+            let mathSource = try await evaluate(desktop.webView, "window.mathFixture")
+            XCTAssertEqual(clipboard.string(forType: .string), mathSource as? String, "Copy preserves LaTeX source rather than duplicated MathML text")
             _ = try await evaluate(desktop.webView, "document.getElementById('result').replaceChildren(); document.getElementById('result').hidden=true; document.getElementById('chat-empty').hidden=false; pendingMarkdown.clear(); true")
             desktop.window?.setContentSize(NSSize(width: 540, height: 480))
             desktop.webView.pageZoom = 1.25
             _ = try await evaluate(desktop.webView, chatChecks)
-            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 600)
+            // This runs the entire interaction suite again. Occluded WebKit
+            // windows throttle its timers, so allow a bounded two minutes.
+            try await waitFor(desktop.webView, "window.chatChecksDone || !!window.chatChecksError", timeout: 1200)
             let zoomError = try await evaluate(desktop.webView, "window.chatChecksError || ''")
+            if let directory = ProcessInfo.processInfo.environment["GEIST_DESKTOP_EVIDENCE"],
+               let motion = try await evaluate(desktop.webView, "JSON.stringify(window.downloadRingMotionEvidence || null)") as? String {
+                try motion.write(toFile: directory + "/download-ring-motion-zoom.json", atomically: true, encoding: .utf8)
+            }
             XCTAssertEqual(zoomError as? String, "", "Minimum window and enlarged text remain usable")
             try await snapshot(desktop.webView, name: "ready-minimum-zoom.png")
             _ = try await evaluate(desktop.webView, "showPage('models-page'); document.getElementById('performance').open=true; document.querySelector('#performance summary').focus(); true")
@@ -297,11 +338,11 @@ final class DesktopWebViewTests: XCTestCase {
                 _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Say hello in one short sentence.'; document.getElementById('task-form').requestSubmit(); true")
                 try await waitFor(desktop.webView, "!controller && state.performance_history.length===2 && state.performance_history.every(sample=>sample.rate>0)", timeout: 900)
                 try await snapshot(desktop.webView, name: "cpu-gpu-comparison.png")
-                _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; document.querySelector('.processor-history').scrollIntoView({block:'nearest'}); true")
+                _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=true; document.querySelector('.profile-table').scrollIntoView({block:'nearest'}); true")
                 try await snapshot(desktop.webView, name: "cpu-gpu-details.png")
             }
             _ = try await evaluate(desktop.webView, "document.getElementById('performance').open=false; showPage('test-page'); true")
-            let realTokens = try await evaluate(desktop.webView, "document.getElementById('speed').textContent")
+            let realTokens = try await evaluate(desktop.webView, "document.querySelector('.reply-metrics').textContent")
             XCTAssertFalse((realTokens as? String ?? "—").contains("—"), "A real response must include final generation metrics")
             try await waitFor(desktop.webView, "!document.getElementById('test-connection').disabled")
             _ = try await evaluate(desktop.webView, "document.querySelector('[data-page=\"connect-page\"]').click(); document.getElementById('test-connection').click(); true")

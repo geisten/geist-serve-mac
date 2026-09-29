@@ -60,8 +60,8 @@ jobs:
           make -C runtime fetch-model
           export GEIST_TEST_MODEL="$PWD/runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf"
           export GEIST_DESKTOP_EVIDENCE="$PWD/build/desktop-evidence"
-          make test RUNTIME_DIR=runtime VERSION=0.5.17
-          make test-dmg RUNTIME_DIR=runtime VERSION=0.5.17
+          make test RUNTIME_DIR=runtime VERSION=0.5.25
+          make test-dmg RUNTIME_DIR=runtime VERSION=0.5.25
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: local-review-dmg

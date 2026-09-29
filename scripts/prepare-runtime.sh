@@ -22,6 +22,16 @@ license_file="$runtime_dir/web/vendor/marked-LICENSE"
 [ -f "$license_file" ] || license_file="$runtime_dir/marked-LICENSE"
 [ -f "$license_file" ] || { echo 'Missing Marked license in runtime input' >&2; exit 1; }
 cp "$license_file" build/marked-LICENSE
+math_license="$runtime_dir/web/vendor/katex-LICENSE"
+[ -f "$math_license" ] || math_license="$runtime_dir/katex-LICENSE"
+if [ -f "$math_license" ]; then
+    cp "$math_license" build/katex-LICENSE
+elif [ -f "$runtime_dir/web/vendor/katex.min.js" ]; then
+    echo 'Missing KaTeX license in math-enabled runtime input' >&2; exit 1
+else
+    # Older pinned runtimes contain only Marked; do not attach stale licenses.
+    rm -f build/katex-LICENSE
+fi
 for binary in geist geist-app geistd; do
     input_binary=$runtime_dir/$binary
     [ "$binary" != geistd ] || input_binary=$daemon_binary
