@@ -49,3 +49,5 @@ for binary in geist geist-app geistd; do
     trap - EXIT HUP INT TERM
 done
 shasum -a 256 build/geist build/geist-app build/geistd > build/RUNTIME-SHA256SUMS
+
+python3 scripts/engine-manifest.py build/geistd build/ENGINE.json
