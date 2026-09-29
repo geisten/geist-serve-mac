@@ -3,3 +3,5 @@
 /.swiftpm/
 *.dmg
 .DS_Store
+/runtime/
+__pycache__/

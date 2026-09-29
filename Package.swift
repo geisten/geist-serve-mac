@@ -19,5 +19,6 @@ let package = Package(
             // Sparkle.framework lives in Contents/Frameworks of the bundle.
             linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
         ),
+        .testTarget(name: "GeistTests", dependencies: ["Geist"], path: "tests/GeistTests"),
     ]
 )
