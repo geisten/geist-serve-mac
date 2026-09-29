@@ -3,6 +3,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 APP=build/Geist.app
+python3 scripts/engine-manifest.py "$APP/Contents/MacOS/geistd" "$APP/Contents/Resources/ENGINE.json" --verify
 fail=0
 ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fail=1; }
 [ -x "$APP/Contents/MacOS/Geist" ] && ok "app executable" || bad "app executable"
