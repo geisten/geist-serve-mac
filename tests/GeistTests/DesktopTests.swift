@@ -61,7 +61,7 @@ final class DesktopWebViewTests: XCTestCase {
         while Date() < deadline {
             defer { attempt += 1 }
             if attempt % 20 == 0, let directory = ProcessInfo.processInfo.environment["GEIST_DESKTOP_EVIDENCE"] {
-                let detail = try? await evaluate(view, "JSON.stringify({stage:window.chatChecksStage,error:window.chatChecksError,requesting:typeof requesting!=='undefined'&&requesting,polling:typeof polling!=='undefined'&&polling})")
+                let detail = try? await evaluate(view, "JSON.stringify({stage:window.chatChecksStage,error:window.chatChecksError,memoryRenderError:window.memoryTestRenderError,stateAvailable:typeof state!=='undefined'&&!!state,controllerActive:typeof controller!=='undefined'&&!!controller,requesting:typeof requesting!=='undefined'&&requesting,polling:typeof polling!=='undefined'&&polling})")
                 let line = "Waiting: \(condition)\n\(detail ?? "No script state")\n"
                 try? line.write(toFile: directory + "/waiting.txt", atomically: true, encoding: .utf8)
             }
