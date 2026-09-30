@@ -18,14 +18,14 @@ jobs:
     environment: notarization
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Read pinned runtime
         id: runtime
         run: |
           revision=$(cat geist-serve.ref)
           [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: geisten/geist-serve
           ref: ${{ steps.runtime.outputs.revision }}
@@ -70,7 +70,7 @@ jobs:
           export SIGNING_IDENTITY NOTARY_PROFILE=geist-ci
           xcrun notarytool store-credentials "$NOTARY_PROFILE" --key "$credentials/AuthKey.p8" --key-id "$APPSTORE_KEY_ID" --issuer "$APPSTORE_ISSUER_ID" --keychain "$SIGNING_KEYCHAIN"
           sh scripts/notarize.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: notarized-test-dmg
           path: |
@@ -79,7 +79,7 @@ jobs:
             build/notary/**/submission.json
             build/notary/**/apple-log.json
             build/notary/**/submission-stderr.txt
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:
           name: notarization-diagnostics

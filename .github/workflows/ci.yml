@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: compile native shell
@@ -28,7 +28,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: require an immutable runtime revision
@@ -40,7 +40,7 @@ jobs:
           revision=${RUNTIME_REF:-$(cat geist-serve.ref)}
           [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
           echo "revision=$revision" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           repository: geisten/geist-serve
@@ -51,7 +51,7 @@ jobs:
           brew install libomp
           make -C runtime geistd GEIST_STATIC_OMP=1
       - name: cache reference model
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: runtime/geistlib/gguf_artifacts/smollm2-360m-instruct-q8_0.gguf
           key: geist-model-smollm2-360m-q8-48ab3034d0dd
@@ -62,7 +62,7 @@ jobs:
           export GEIST_DESKTOP_EVIDENCE="$PWD/build/desktop-evidence"
           make test RUNTIME_DIR=runtime VERSION=0.5.30
           make test-dmg RUNTIME_DIR=runtime VERSION=0.5.30
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: local-review-dmg
           path: |
