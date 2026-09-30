@@ -6,6 +6,14 @@ import XCTest
 @testable import Geist
 
 final class DesktopPolicyTests: XCTestCase {
+    func testBootstrapInjectsCLIPathAsJSON() throws {
+        let tricky = "/Users/x/My Apps/Geist \"beta\".app/Contents/MacOS/geist-cli\u{2028}'; alert(1); '"
+        let script = DesktopBootstrap.script(cliPath: tricky)
+        XCTAssertTrue(script.hasPrefix(DesktopLanguage.script), "language bootstrap stays first")
+        let json = try XCTUnwrap(script.components(separatedBy: "window.geistCLIPath = ").last?.dropLast())
+        XCTAssertEqual(try JSONDecoder().decode(String.self, from: Data(json.utf8)), tricky, "path round-trips as one JSON string literal")
+        XCTAssertTrue(DesktopBootstrap.cliPath.hasSuffix("/geist-cli"))
+    }
     func testSystemLanguageAndManualOverride() {
         for locale in ["de", "de-DE", "de_AT.UTF-8", "DE-ch", "de@euro"] {
             XCTAssertEqual(DesktopLanguage.resolve(preference: "system", system: locale), "de")
