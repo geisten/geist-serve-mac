@@ -15,22 +15,25 @@ struct AppVersion: Comparable {
 // outside it. Staging and rollback stay on the destination filesystem.
 enum AppInstallation {
     enum Failure: Error { case invalidBundle, downgrade, unsafeDestination }
+    private static func info(at url: URL) -> [String: Any]? {
+        guard let data = try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")) else { return nil }
+        return try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+    }
     static func version(at url: URL) -> AppVersion? {
-        guard let data = try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")),
-              let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              info["CFBundleIdentifier"] as? String == "com.geisten.geist",
+        guard let info = info(at: url), info["CFBundleIdentifier"] as? String == "com.geisten.geist",
               let value = info["CFBundleShortVersionString"] as? String else { return nil }
         return AppVersion(value)
     }
     static func build(at url: URL) -> Int {
-        guard let data = try? Data(contentsOf: url.appendingPathComponent("Contents/Info.plist")),
-              let info = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-              let value = info["CFBundleVersion"] as? String, let build = Int(value) else { return 0 }
-        return build
+        (info(at: url)?["CFBundleVersion"] as? String).flatMap { Int($0) } ?? 0
+    }
+    /// Version, then build number: is `a` at least as new as `b`?
+    private static func atLeast(_ a: URL, _ av: AppVersion, _ b: URL, _ bv: AppVersion) -> Bool {
+        av > bv || (av == bv && build(at: a) >= build(at: b))
     }
     static func isAtLeastAsNew(_ installed: URL, as incoming: URL) -> Bool {
         guard let a = version(at: installed), let b = version(at: incoming) else { return false }
-        return a > b || (a == b && build(at: installed) >= build(at: incoming))
+        return atLeast(installed, a, incoming, b)
     }
     static func verify(_ bundle: URL) throws {
         let process = Process()
@@ -52,7 +55,7 @@ enum AppInstallation {
         }
         if exists {
             guard let installed = version(at: destination) else { throw Failure.invalidBundle }
-            guard incoming > installed || (incoming == installed && build(at: source) >= build(at: destination)) else { throw Failure.downgrade }
+            guard atLeast(source, incoming, destination, installed) else { throw Failure.downgrade }
         }
         let parent = destination.deletingLastPathComponent()
         let stage = parent.appendingPathComponent(".Geist-install-\(UUID().uuidString).app")
