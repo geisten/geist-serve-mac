@@ -23,6 +23,19 @@ enum DesktopPolicy {
     }
 }
 
+/// What the local page learns about its host before any of its scripts run.
+/// Every interpolated value is an allowlisted token or JSON-encoded.
+enum DesktopBootstrap {
+    /// The bundled command line tool, wherever this app is installed (#60).
+    static var cliPath: String {
+        Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("geist-cli").path
+    }
+    static func script(cliPath: String = cliPath) -> String {
+        let quoted = (try? JSONEncoder().encode(cliPath)).flatMap { String(data: $0, encoding: .utf8) } ?? "null"
+        return DesktopLanguage.script + " window.geistCLIPath = \(quoted);"
+    }
+}
+
 enum DesktopDestination: String {
     case models = "models-page", connect = "connect-page", settings = "settings-page", test = "test-page"
 }
@@ -50,7 +63,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.preferences.tabFocusesLinks = true
         configuration.userContentController.addUserScript(WKUserScript(
-            source: DesktopLanguage.script,
+            source: DesktopBootstrap.script(),
             injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView = WKWebView(frame: .zero, configuration: configuration)
         let size = DesktopPolicy.initialSize(visible: NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800))
@@ -196,7 +209,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
             // Future documents must receive the latest bounded preference.
             controller.removeAllUserScripts()
             controller.addUserScript(WKUserScript(
-                source: DesktopLanguage.script,
+                source: DesktopBootstrap.script(),
                 injectionTime: .atDocumentStart, forMainFrameOnly: true))
         case "copy":
             guard let value = body["value"], value.utf8.count <= 131072 else { replyHandler(nil, "Text too large"); return }
