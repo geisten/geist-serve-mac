@@ -6,9 +6,75 @@ or OpenCode through the same geistd. The current gateway supports text chat;
 agent tools are explicitly unsupported. Geist sends no prompts to a cloud
 service; connected editors have their own storage and telemetry settings.
 
-Apple Silicon, macOS 14+. This is a development preview. Local builds are
-ad-hoc signed; public distribution needs Developer ID signing and
-notarization. No app release or Homebrew cask has been published by this change.
+Apple Silicon, macOS 14+. This is a development preview: there is no public
+release yet. Local builds are ad-hoc signed; public distribution waits for
+Developer ID signing and notarization (#6).
+
+## Install
+
+- **DMG:** open `Geist-<version>-arm64.dmg` and choose **Install and open**. The
+  app copies itself to `/Applications/Geist.app`, checks the copy's signature
+  and replaces an older version in place. Models and settings are kept.
+- **Homebrew cask:** planned as `brew install --cask geisten/tap/geist` once the
+  first notarized DMG is published (#7). Until then, build a DMG yourself
+  (see *Build a local app and DMG* below). The tap's `Formula/geist.rb` is the
+  separate command-line engine and is unrelated to this app.
+
+## First launch
+
+1. Geist opens its window with the model list. One model is marked
+   **Recommended for this Mac**, and the right-hand side names it with its
+   download size.
+2. Click a model's name to download and start it. Downloads over 1 GB ask
+   first and show their size; you can pause, resume or remove a download from
+   its row. Every download is checked against its SHA-256 before use.
+3. When the model is ready, try it in **Quick test** or connect a program.
+
+Nothing is sent to a cloud service. Answer quality is not verified by Geist:
+check answers before you rely on them.
+
+## The menu bar
+
+The menu shows the active model and service status, and offers **Models**,
+**Settings** (⌘,), **Connect a program**, **Start at Login**, **Show Data
+Folder**, **Check for Updates…**, **Stop model service** and **Quit Geist**.
+Closing the window or quitting Geist keeps the model service running for your
+editors and the terminal; **Stop model service** stops it. The interface is in
+German or English: it follows the system language until you choose one in
+Settings.
+
+## Connect a program
+
+**Connect a program** shows the local endpoint and model and copies a ready
+configuration for the terminal (curl), Continue (VS Code) or OpenCode. The
+copied configuration contains your private local key; keep it out of
+repositories. The bundled command-line client is
+`/Applications/Geist.app/Contents/MacOS/geist-cli` (`geist-cli chat`,
+`geist-cli config continue`, `geist-cli config opencode`). Text chat only;
+agent tools are rejected. See the shared
+[app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md#shared-editor-endpoint).
+
+## Where your data lives
+
+- `~/Library/Application Support/Geist/`: downloaded models (`models/`), the
+  private API key and the connection descriptor.
+- Preferences such as the interface language: the `com.geisten.geist` domain.
+- Nothing lives inside `Geist.app`, so replacing or updating the app keeps it.
+
+## Uninstall
+
+1. In the menu choose **Stop model service**, then **Quit Geist**.
+2. If you enabled **Start at Login**, switch it off first (or remove Geist under
+   System Settings → General → Login Items).
+3. Delete `/Applications/Geist.app`.
+4. To remove models, key and settings as well:
+
+   ```sh
+   rm -rf ~/Library/Application\ Support/Geist
+   defaults delete com.geisten.geist
+   ```
+
+# Development
 
 ## One application, two platforms
 
@@ -45,8 +111,9 @@ The metric row below the active model expands machine and response measurements.
 (German, otherwise English) until an explicit language is selected. **System language**
 restores automatic detection. This preference also updates native menu labels and
 survives reconnects; it does not translate existing input or model responses.
-The white interface uses labeled icons for common actions and keeps model speed,
-RAM and file size beside the active model. The native menu shows the active model and status and offers direct
+The white interface uses labeled icons for common actions and keeps the active
+model's processor choice and typical speed beside it; memory and file size are
+in **Measurements**. The native menu shows the active model and status and offers direct
 **Models**, **Settings** (⌘,) and **Connect a program** route without reloading.
 
 **Quick test** is optional. Enter sends, Shift + Enter inserts a newline, and
@@ -57,8 +124,7 @@ Hardware suitability does not establish answer quality.
 
 See the shared [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md)
 for the catalog, model licenses, memory assumptions, privacy boundary and
-Pi desktop/SSH setup. Until the companion change is merged, that guide is
-in the local runtime checkout at `docs/APP.md`.
+Pi desktop/SSH setup.
 
 ## Build a local app and DMG
 
@@ -141,12 +207,11 @@ received in the current window, not throughput guarantees.
 
 ### Model performance
 
-The active model has one metric row: tokens/s for the last completed test reply,
-current resident RAM of the shared model process and model file size. Clicking
-that row or its chevron expands machine/OS, logical CPUs, available RAM,
-normalized process CPU load, output count and reply timings directly underneath.
-There is no separate performance section in the sidebar. The panel supports
-keyboard scrolling and stays inside small windows without moving the composer.
+Beside the active model, each processor choice shows its typical speed ("Not
+measured yet" until it has one); ★ marks the recommended processor. The
+**Measurements** icon opens a dialog with current memory (process RSS, Metal
+allocation, file size, each with its source in plain words), the local
+performance profile per processor, machine/OS details and recent observations.
 Escape or clicking outside closes it; changing the model clears old reply metrics.
 Missing measurements remain unknown; stopped replies have no final speed.
 See the pinned runtime’s `docs/INSTALL.md` for exact definitions. The surface is
