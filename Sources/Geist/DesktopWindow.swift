@@ -211,6 +211,32 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
             controller.addUserScript(WKUserScript(
                 source: DesktopBootstrap.script(),
                 injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        case "export":
+            // #101: ask where to save (Downloads preset), then fetch the export from the
+            // local service directly: an export can be far larger than a bridge message.
+            guard let name = body["value"],
+                  name.range(of: #"^geisten-measurements-[0-9]{4}-[0-9]{2}-[0-9]{2}\.jsonl$"#, options: .regularExpression) != nil,
+                  let origin, let key = origin.fragment, let window,
+                  var source = URLComponents(url: origin, resolvingAgainstBaseURL: false) else { replyHandler(nil, "Invalid export"); return }
+            source.fragment = nil
+            source.path = "/app/performance/export"
+            guard let url = source.url else { replyHandler(nil, "Invalid export"); return }
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = name
+            panel.directoryURL = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            panel.beginSheetModal(for: window) { response in
+                guard response == .OK, let target = panel.url else { replyHandler("cancelled", nil); return }
+                var request = URLRequest(url: url)
+                request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+                URLSession.shared.dataTask(with: request) { data, answer, _ in
+                    DispatchQueue.main.async {
+                        guard let data, (answer as? HTTPURLResponse)?.statusCode == 200, data.count <= 20 << 20,
+                              (try? data.write(to: target, options: .atomic)) != nil else { replyHandler(nil, "Export failed"); return }
+                        replyHandler(target.path, nil)
+                    }
+                }.resume()
+            }
+            return
         case "copy":
             guard let value = body["value"], value.utf8.count <= 131072 else { replyHandler(nil, "Text too large"); return }
             clipboard.clearContents()
