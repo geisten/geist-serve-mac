@@ -66,5 +66,5 @@ jobs:
         with:
           name: local-review-dmg
           path: |
-            build/Geist-*-arm64.dmg
+            build/geisten-*-arm64.dmg
             build/desktop-evidence/*.png

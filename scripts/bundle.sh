@@ -1,5 +1,5 @@
 #!/bin/sh
-# bundle.sh — assemble build/Geist.app from the swift build product, the
+# bundle.sh — assemble build/geisten.app from the swift build product, the
 # Info.plist template and the matching geistd binary. Signing and
 # notarization are notarize.yml's job (#6); this bundle is ad-hoc signed so
 # it runs locally.
@@ -7,7 +7,7 @@ set -eu
 cd "$(dirname "$0")/.."
 VERSION=${VERSION:-0.0.0-dev}
 BUILD=$(git rev-list --count HEAD 2>/dev/null || echo 0)
-APP=build/Geist.app
+APP=build/geisten.app
 BIN=$(swift build -c release --show-bin-path)
 
 # Icon set: rendered from scripts/icon.swift, cached in build/icon.

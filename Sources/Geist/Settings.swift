@@ -12,7 +12,7 @@ final class Settings {
             if on { try SMAppService.mainApp.register() }
             else { try SMAppService.mainApp.unregister() }
         } catch {
-            FileHandle.standardError.write(Data("Geist login item: \(error.localizedDescription)\n".utf8))
+            FileHandle.standardError.write(Data("geisten login item: \(error.localizedDescription)\n".utf8))
         }
         launchAtLogin = SMAppService.mainApp.status == .enabled
     }

@@ -35,6 +35,8 @@ fi
 for binary in geist geist-app geistd; do
     input_binary=$runtime_dir/$binary
     [ "$binary" != geistd ] || input_binary=$daemon_binary
+    # The CLI is geisten since geist-serve#96; geist is its alias (older runtimes: the binary).
+    [ "$binary" != geist ] || [ ! -x "$runtime_dir/geisten" ] || input_binary=$runtime_dir/geisten
     [ -x "$input_binary" ] || { echo "Missing runtime: $input_binary" >&2; exit 1; }
     if otool -L "$input_binary" | grep -q '/opt/homebrew\|/usr/local/'; then
         echo "Runtime depends on a developer installation: $binary" >&2; exit 1

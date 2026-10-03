@@ -1,9 +1,9 @@
-# Geist for macOS
+# geisten for macOS
 
 **Runs here. Stays here.** A desktop model manager for one shared local model service.
 Download a suggested model once, then connect the terminal, Continue in VS Code
 or OpenCode through the same geistd. The current gateway supports text chat;
-agent tools are explicitly unsupported. Geist sends no prompts to a cloud
+agent tools are explicitly unsupported. geisten sends no prompts to a cloud
 service; connected editors have their own storage and telemetry settings.
 
 Apple Silicon, macOS 14+. This is a development preview: there is no public
@@ -12,8 +12,8 @@ Developer ID signing and notarization (#6).
 
 ## Install
 
-- **DMG:** open `Geist-<version>-arm64.dmg` and choose **Install and open**. The
-  app copies itself to `/Applications/Geist.app`, checks the copy's signature
+- **DMG:** open `geisten-<version>-arm64.dmg` and choose **Install and open**. The
+  app copies itself to `/Applications/geisten.app`, checks the copy's signature
   and replaces an older version in place. Models and settings are kept.
 - **Homebrew cask:** planned as `brew install --cask geisten/tap/geist` once the
   first notarized DMG is published (#7). Until then, build a DMG yourself
@@ -22,7 +22,7 @@ Developer ID signing and notarization (#6).
 
 ## First launch
 
-1. Geist opens its window with the model list. One model is marked
+1. geisten opens its window with the model list. One model is marked
    **Recommended for this Mac**, and the right-hand side names it with its
    download size.
 2. Click a model's name to download and start it. Downloads over 1 GB ask
@@ -30,15 +30,15 @@ Developer ID signing and notarization (#6).
    its row. Every download is checked against its SHA-256 before use.
 3. When the model is ready, try it in **Quick test** or connect a program.
 
-Nothing is sent to a cloud service. Answer quality is not verified by Geist:
+Nothing is sent to a cloud service. Answer quality is not verified by geisten:
 check answers before you rely on them.
 
 ## The menu bar
 
 The menu shows the active model and service status, and offers **Models**,
 **Settings** (⌘,), **Connect a program**, **Start at Login**, **Show Data
-Folder**, **Check for Updates…**, **Stop model service** and **Quit Geist**.
-Closing the window or quitting Geist keeps the model service running for your
+Folder**, **Check for Updates…**, **Stop model service** and **Quit geisten**.
+Closing the window or quitting geisten keeps the model service running for your
 editors and the terminal; **Stop model service** stops it. The interface is in
 German or English: it follows the system language until you choose one in
 Settings.
@@ -49,28 +49,28 @@ Settings.
 configuration for the terminal (curl), Continue (VS Code) or OpenCode. The
 copied configuration contains your private local key; keep it out of
 repositories. The bundled command-line client is
-`/Applications/Geist.app/Contents/MacOS/geist-cli` (`geist-cli chat`,
+`/Applications/geisten.app/Contents/MacOS/geist-cli` (`geist-cli chat`,
 `geist-cli config continue`, `geist-cli config opencode`). Text chat only;
 agent tools are rejected. See the shared
 [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md#shared-editor-endpoint).
 
 ## Where your data lives
 
-- `~/Library/Application Support/Geist/`: downloaded models (`models/`), the
+- `~/Library/Application Support/geisten/`: downloaded models (`models/`), the
   private API key and the connection descriptor.
 - Preferences such as the interface language: the `com.geisten.geist` domain.
-- Nothing lives inside `Geist.app`, so replacing or updating the app keeps it.
+- Nothing lives inside `geisten.app`, so replacing or updating the app keeps it.
 
 ## Uninstall
 
-1. In the menu choose **Stop model service**, then **Quit Geist**.
-2. If you enabled **Start at Login**, switch it off first (or remove Geist under
+1. In the menu choose **Stop model service**, then **Quit geisten**.
+2. If you enabled **Start at Login**, switch it off first (or remove geisten under
    System Settings → General → Login Items).
-3. Delete `/Applications/Geist.app`.
+3. Delete `/Applications/geisten.app`.
 4. To remove models, key and settings as well:
 
    ```sh
-   rm -rf ~/Library/Application\ Support/Geist
+   rm -rf ~/Library/Application\ Support/geisten
    defaults delete com.geisten.geist
    ```
 
@@ -93,7 +93,7 @@ it explicitly. Sparkle waits for the service to stop before installing an update
 If stopping fails, installation is cancelled and the menu explains the failure.
 The stop runs off the UI thread; a cancelled update cannot resume an old installer.
 Model policy is not duplicated in Swift. The bundled terminal client lives at
-`Geist.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
+`geisten.app/Contents/MacOS/geist-cli`; no global command is installed automatically.
 
 The first screen shows all catalog models, including missing downloads, with a
 platform-checked suggestion ordered first. Clicking a model name or its leading
@@ -137,13 +137,13 @@ make dmg RUNTIME_DIR=../geist-serve VERSION=0.0.0-dev
 make run RUNTIME_DIR=../geist-serve
 ```
 
-The build produces `build/Geist.app` and `build/Geist-0.0.0-dev-arm64.dmg`.
+The build produces `build/geisten.app` and `build/geisten-0.0.0-dev-arm64.dmg`.
 It builds the C23 runtime and the pinned inference engine with static
 OpenMP, and rejects Homebrew runtime-library dependencies. The downloaded
 model is not included. A verified prebuilt runtime can instead be supplied in
 `GEIST_RUNTIME_BIN_DIR`; it must contain executable `geist`, `geist-app` and
 `geistd` files for Apple Silicon. The bundle renames `geist` to `geist-cli` to
-avoid colliding with `Geist` on case-insensitive filesystems.
+avoid colliding with `geisten` on case-insensitive filesystems.
 
 SwiftPM resolves Sparkle using Package.resolved. Automatic update checks run daily; the menu also offers manual checks against the configured release feed.
 The native runtime test uses an isolated temporary data directory and asks
@@ -158,7 +158,7 @@ CI runs; pin a merged revision before preparing a public Mac release.
 
 ## Data and migration
 
-Models stay in `~/Library/Application Support/Geist/models`. Catalog files
+Models stay in `~/Library/Application Support/geisten/models`. Catalog files
 from the previous app are reused after verification. Choose Use once to
 select a previous model; the old Swift selected-model preference is not
 migrated. The former LAN toggle and CLI installer are no longer in this
@@ -187,7 +187,7 @@ window with shared web content, not a fully native Liquid Glass interface.
 
 ### Installing and updating the desktop app
 
-The DMG app offers **Install and open**, replacing `/Applications/Geist.app` in
+The DMG app offers **Install and open**, replacing `/Applications/geisten.app` in
 place. The candidate is copied and signature-checked before replacement; failed
 copy/validation leaves the installed bundle intact. Models, download fragments,
 preferences and credentials are outside the bundle and are preserved.

@@ -58,8 +58,8 @@ enum AppInstallation {
             guard atLeast(source, incoming, destination, installed) else { throw Failure.downgrade }
         }
         let parent = destination.deletingLastPathComponent()
-        let stage = parent.appendingPathComponent(".Geist-install-\(UUID().uuidString).app")
-        let backup = parent.appendingPathComponent(".Geist-previous-\(UUID().uuidString).app")
+        let stage = parent.appendingPathComponent(".geisten-install-\(UUID().uuidString).app")
+        let backup = parent.appendingPathComponent(".geisten-previous-\(UUID().uuidString).app")
         defer { try? fm.removeItem(at: stage) }
         try fm.copyItem(at: source, to: stage)
         try verify(stage)
@@ -73,6 +73,16 @@ enum AppInstallation {
         // Leave the backup in place if cleanup fails, rather than lose the new app.
         if exists { try? fm.removeItem(at: backup) }
     }
+    /// The app's bundle name before the rename to geisten (#92).
+    static let previousName = "Geist.app"
+    /// After an install as geisten.app, a copy under the earlier name is retired, so
+    /// one bundle ID never has two installed apps. Only our own, non-symlinked bundle.
+    static func retirePrevious(_ previous: URL,
+                               retire: (URL) throws -> Void = { try FileManager.default.trashItem(at: $0, resultingItemURL: nil) }) {
+        guard (try? previous.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) != true,
+              version(at: previous) != nil else { return }
+        try? retire(previous)
+    }
 }
 
 @MainActor
@@ -83,7 +93,7 @@ enum LaunchInstallation {
         let source = Bundle.main.bundleURL
         guard ProcessInfo.processInfo.environment["GEIST_HOME"] == nil,
               AppInstallation.version(at: source) != nil else { return true }
-        let destination = URL(fileURLWithPath: "/Applications/Geist.app", isDirectory: true)
+        let destination = URL(fileURLWithPath: "/Applications/geisten.app", isDirectory: true)
         if source.standardizedFileURL != destination,
            AppInstallation.isAtLeastAsNew(destination, as: source) {
             await openInstalled(destination)
@@ -93,7 +103,7 @@ enum LaunchInstallation {
             return await closeOtherCopies()
         }
         let alert = NSAlert()
-        alert.messageText = desktopText("Install Geist in Applications?")
+        alert.messageText = desktopText("Install geisten in Applications?")
         alert.informativeText = desktopText("This replaces the previous app. Your models and settings are kept.")
         alert.addButton(withTitle: desktopText("Install and open"))
         alert.addButton(withTitle: desktopText("Cancel"))
@@ -103,11 +113,13 @@ enum LaunchInstallation {
             // working until the newly installed CLI performs its version handoff.
             guard await closeOtherCopies() else { return false }
             try AppInstallation.replace(source: source, destination: destination, prepare: {})
+            AppInstallation.retirePrevious(destination.deletingLastPathComponent()
+                .appendingPathComponent(AppInstallation.previousName))
             await openInstalled(destination)
         } catch {
             let errorAlert = NSAlert()
-            errorAlert.messageText = desktopText("Geist could not be installed")
-            errorAlert.informativeText = desktopText("The previous app is kept. Copy Geist to Applications in Finder, then open it there.")
+            errorAlert.messageText = desktopText("geisten could not be installed")
+            errorAlert.informativeText = desktopText("The previous app is kept. Copy geisten to Applications in Finder, then open it there.")
             errorAlert.runModal()
             NSWorkspace.shared.activateFileViewerSelecting([source])
         }
@@ -134,7 +146,7 @@ enum LaunchInstallation {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         let alert = NSAlert()
-        alert.messageText = desktopText("Close the previous Geist app first")
+        alert.messageText = desktopText("Close the previous geisten app first")
         alert.informativeText = desktopText("An update or another window is still open. Your model service has not been stopped.")
         alert.runModal()
         return false

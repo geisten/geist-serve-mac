@@ -1,6 +1,6 @@
 # Geist — menu bar app for geist-serve on macOS (Apple Silicon, macOS 14+).
 #
-#> make           build/Geist.app (swift build + bundle, ad-hoc signed)
+#> make           build/geisten.app (swift build + bundle, ad-hoc signed)
 #> make run       build and launch it
 #> make test      bundle sanity + server-process integration (needs a GGUF, else skips)
 #> make clean
@@ -9,7 +9,7 @@ VERSION ?= 0.0.0-dev
 RUNTIME_DIR ?= ../geist-serve
 
 .PHONY: all run test test-dmg clean help runtime dmg
-all: build/Geist.app
+all: build/geisten.app
 
 help:
 	@grep "^#>" Makefile | cut -c4-
@@ -17,20 +17,20 @@ help:
 runtime:
 	sh scripts/prepare-runtime.sh "$(RUNTIME_DIR)"
 
-build/Geist.app: runtime Package.swift $(wildcard Sources/Geist/*.swift) Resources/Info.plist scripts/bundle.sh
+build/geisten.app: runtime Package.swift $(wildcard Sources/Geist/*.swift) Resources/Info.plist scripts/bundle.sh
 	swift build -c release
 	VERSION=$(VERSION) sh scripts/bundle.sh
 
-run: build/Geist.app
-	open build/Geist.app
+run: build/geisten.app
+	open build/geisten.app
 
-test: build/Geist.app
+test: build/geisten.app
 	GEIST_DESKTOP_RUNTIME="$(CURDIR)/build" GEIST_CHAT_TEST_SCRIPT="$(abspath $(RUNTIME_DIR))/tests/desktop/chat_checks.js" swift test
 	python3 tests/distribution_test.py
 	sh tests/bundle_sanity.sh
 	python3 tests/runtime.py
 
-dmg: build/Geist.app
+dmg: build/geisten.app
 	VERSION=$(VERSION) sh scripts/dmg.sh
 
 test-dmg: dmg

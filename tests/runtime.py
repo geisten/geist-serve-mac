@@ -8,7 +8,7 @@ import tempfile
 import time
 
 ROOT=Path(__file__).resolve().parents[1]
-BIN=ROOT/'build/Geist.app/Contents/MacOS'
+BIN=ROOT/'build/geisten.app/Contents/MacOS'
 with tempfile.TemporaryDirectory(prefix='geist-mac-') as home:
     subprocess.run([str(BIN/'geist-app'),'--home',home,'--check'],check=True)
     env=os.environ|{'GEIST_HOME':home,'GEIST_PORT':'0','GEIST_NO_OPEN':'1','GEIST_TEST_QUIT':'1'}

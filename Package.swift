@@ -1,6 +1,6 @@
 // swift-tools-version: 5.9
 // Geist — menu bar app that runs geist-serve. Built with `make`, which calls
-// swift build and then scripts/bundle.sh to assemble Geist.app; Xcode can
+// swift build and then scripts/bundle.sh to assemble geisten.app; Xcode can
 // open this package directly for development.
 import PackageDescription
 

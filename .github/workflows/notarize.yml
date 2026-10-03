@@ -74,8 +74,8 @@ jobs:
         with:
           name: notarized-test-dmg
           path: |
-            build/Geist-*-arm64.dmg
-            build/Geist-*-arm64.dmg.sha256
+            build/geisten-*-arm64.dmg
+            build/geisten-*-arm64.dmg.sha256
             build/notary/**/submission.json
             build/notary/**/apple-log.json
             build/notary/**/submission-stderr.txt
