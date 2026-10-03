@@ -2,7 +2,7 @@
 # The bundle is what ships: check its shape, not the Swift code.
 set -eu
 cd "$(dirname "$0")/.."
-APP=build/Geist.app
+APP=build/geisten.app
 python3 scripts/engine-manifest.py "$APP/Contents/MacOS/geistd" "$APP/Contents/Resources/ENGINE.json" --verify
 fail=0
 ok() { echo "ok   $1"; }; bad() { echo "FAIL $1"; fail=1; }

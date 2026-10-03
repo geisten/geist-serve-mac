@@ -10,7 +10,7 @@ struct GeistApp: App {
     @AppStorage("interfaceLanguage") private var interfacePreference = "system"
     var body: some Scene {
         let _ = interfacePreference // Refresh menu labels when the shared interface preference changes.
-        MenuBarExtra("Geist", systemImage: "waveform.circle") {
+        MenuBarExtra("geisten", systemImage: "waveform.circle") {
             Text(desktopText(delegate.runtime.status))
                 .onAppear { delegate.runtime.refresh() }
             if !delegate.runtime.modelName.isEmpty { Text(delegate.runtime.modelName) }
@@ -21,7 +21,7 @@ struct GeistApp: App {
             Button(desktopText("Settings")) { delegate.runtime.open(destination: .settings) }
                 .keyboardShortcut(",")
             if !delegate.runtime.running {
-                Button(desktopText("Start Geist")) { delegate.runtime.start() }
+                Button(desktopText("Start geisten")) { delegate.runtime.start() }
             }
             Divider()
             Toggle(desktopText("Start at Login"), isOn: Binding(
@@ -31,7 +31,7 @@ struct GeistApp: App {
             Button(desktopText("Check for Updates…")) { delegate.updater.updater.checkForUpdates() }
             Divider()
             Button(desktopText("Stop model service")) { delegate.runtime.confirmStop() }
-            Button(desktopText("Quit Geist")) { NSApp.terminate(nil) }.keyboardShortcut("q")
+            Button(desktopText("Quit geisten")) { NSApp.terminate(nil) }.keyboardShortcut("q")
         }
     }
 }
@@ -69,7 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, SPUUpdaterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
             do { try updater.updater.start() } catch {
-                FileHandle.standardError.write(Data("Geist update service: \(error.localizedDescription)\n".utf8))
+                FileHandle.standardError.write(Data("geisten update service: \(error.localizedDescription)\n".utf8))
             }
             NSApp.setActivationPolicy(.regular)
             Task { @MainActor in

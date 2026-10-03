@@ -32,7 +32,7 @@ final class ApplicationProcess {
             return URL(fileURLWithPath: path, isDirectory: true)
         }
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Geist", isDirectory: true)
+            .appendingPathComponent("geisten", isDirectory: true)
     }
 
     /// geist-cli exit codes the shell reacts to; anything else non-zero is "unavailable".
@@ -82,7 +82,7 @@ final class ApplicationProcess {
             if result.0 == Exit.olderServiceRunning.rawValue {
                 let alert = NSAlert()
                 alert.messageText = desktopText("Restart the older model service?")
-                alert.informativeText = desktopText("Finish any current task first. Geist will use the installed version. Downloads and models are kept.")
+                alert.informativeText = desktopText("Finish any current task first. geisten will use the installed version. Downloads and models are kept.")
                 alert.addButton(withTitle: desktopText("Restart and continue"))
                 alert.addButton(withTitle: desktopText("Cancel"))
                 if alert.runModal() == .alertFirstButtonReturn {
@@ -107,8 +107,8 @@ final class ApplicationProcess {
             } else {
                 url = nil; running = false
                 status = switch Exit(rawValue: result.0) {
-                case .serviceBusy: "Finish the current task, then reconnect to update Geist."
-                case .newerServiceRunning: "A newer Geist service is running. Open the newest installed app."
+                case .serviceBusy: "Finish the current task, then reconnect to update geisten."
+                case .newerServiceRunning: "A newer geisten service is running. Open the newest installed app."
                 case .olderServiceRunning: "Restart the older service to use this app."
                 default: "Service unavailable — check port 8766"
                 }

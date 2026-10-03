@@ -18,10 +18,10 @@ final class InstallationTests: XCTestCase {
     }
     func testSignedCandidateReplacesOldBundle() throws {
         guard let runtime = ProcessInfo.processInfo.environment["GEIST_DESKTOP_RUNTIME"] else { throw XCTSkip("Build the candidate bundle first") }
-        let candidate = URL(fileURLWithPath: runtime).appendingPathComponent("Geist.app")
+        let candidate = URL(fileURLWithPath: runtime).appendingPathComponent("geisten.app")
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let installed = root.appendingPathComponent("Geist.app")
+        let installed = root.appendingPathComponent("geisten.app")
         try fm.createDirectory(at: installed.appendingPathComponent("Contents"), withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: root) }
         let info = ["CFBundleIdentifier": "com.geisten.geist", "CFBundleShortVersionString": "0.0.0"]
@@ -33,6 +33,34 @@ final class InstallationTests: XCTestCase {
         try AppInstallation.replace(source: candidate, destination: installed, prepare: {})
         try AppInstallation.verify(installed)
         XCTAssertEqual(AppInstallation.version(at: installed), AppInstallation.version(at: candidate))
+    }
+
+    /// #92: an install as geisten.app retires only our own app under the earlier name.
+    func testPreviousNameIsRetiredOnlyWhenItIsOurApp() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+        func bundle(_ name: String, identifier: String) throws -> URL {
+            let url = root.appendingPathComponent(name)
+            try fm.createDirectory(at: url.appendingPathComponent("Contents"), withIntermediateDirectories: true)
+            let info = ["CFBundleIdentifier": identifier, "CFBundleShortVersionString": "0.5.30"]
+            try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+                .write(to: url.appendingPathComponent("Contents/Info.plist"))
+            return url
+        }
+        var retired: [String] = []
+        let record: (URL) throws -> Void = { retired.append($0.lastPathComponent) }
+        let ours = try bundle(AppInstallation.previousName, identifier: "com.geisten.geist")
+        AppInstallation.retirePrevious(ours, retire: record)
+        XCTAssertEqual(retired, ["Geist.app"])
+        let foreign = try bundle("Other.app", identifier: "com.example.other")
+        AppInstallation.retirePrevious(foreign, retire: record)
+        let link = root.appendingPathComponent("Linked.app")
+        try fm.createSymbolicLink(at: link, withDestinationURL: ours)
+        AppInstallation.retirePrevious(link, retire: record)
+        AppInstallation.retirePrevious(root.appendingPathComponent("Missing.app"), retire: record)
+        XCTAssertEqual(retired, ["Geist.app"], "a foreign app, a symlink or nothing is never retired")
     }
 
     func testMinorReplacementAndFailuresPreserveInstalledBundle() throws {
@@ -48,7 +76,7 @@ final class InstallationTests: XCTestCase {
                 .write(to: url.appendingPathComponent("Contents/Info.plist"))
             return url
         }
-        let installed = try bundle("Geist.app", version: "0.4.1")
+        let installed = try bundle("geisten.app", version: "0.4.1")
         let incoming = try bundle("download.app", version: "0.5.3")
         XCTAssertFalse(AppInstallation.isAtLeastAsNew(installed, as: incoming))
         let same = try bundle("same.app", version: "0.5.3")
@@ -76,6 +104,6 @@ final class InstallationTests: XCTestCase {
         let link = root.appendingPathComponent("linked.app")
         try fm.createSymbolicLink(at: link, withDestinationURL: installed)
         XCTAssertThrowsError(try AppInstallation.replace(source: incoming, destination: link, verify: { _ in }, prepare: {}))
-        XCTAssertFalse(try fm.contentsOfDirectory(atPath: root.path).contains { $0.hasPrefix(".Geist-") })
+        XCTAssertFalse(try fm.contentsOfDirectory(atPath: root.path).contains { $0.hasPrefix(".geisten-") })
     }
 }

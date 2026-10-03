@@ -20,7 +20,7 @@ It does not download the large artifact or touch the normal installation.
 After building the development bundle, run:
 
 ```sh
-GEIST_DESKTOP_RUNTIME="$PWD/build/Geist.app/Contents/MacOS" \
+GEIST_DESKTOP_RUNTIME="$PWD/build/geisten.app/Contents/MacOS" \
 GEIST_BONSAI_TEST_MODEL=/path/to/Ternary-Bonsai-2-27B-PQ2_0.gguf \
 GEIST_DESKTOP_EVIDENCE=/path/to/a-new-evidence-directory \
 swift test --filter DesktopWebViewTests.testPackagedBonsaiMemoryAcrossCPUAndMetal

@@ -16,7 +16,7 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 os.umask(0o077)
 version = os.environ.get('VERSION', '0.0.0-dev')
-image = ROOT/'build'/f'Geist-{version}-arm64.dmg'
+image = ROOT/'build'/f'geisten-{version}-arm64.dmg'
 model = os.environ.get('GEIST_TEST_MODEL')
 if model:
     # Fail before mounting/copying when the caller supplied a missing fixture.
@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory(prefix='geist-install-') as temp:
     mount = root/'disk'; mount.mkdir()
     applications = root/'Applications'; applications.mkdir()
     home = root/'data'
-    installed = applications/'Geist.app'
+    installed = applications/'geisten.app'
     env = os.environ | {'GEIST_HOME':str(home), 'GEIST_PORT':'0'}
     if model: env['GEIST_MODEL'] = model
     cli = installed/'Contents/MacOS/geist-cli'
@@ -45,7 +45,7 @@ with tempfile.TemporaryDirectory(prefix='geist-install-') as temp:
     subprocess.run(['hdiutil','attach','-readonly','-nobrowse','-mountpoint',str(mount),str(image)],
                    check=True, capture_output=True, timeout=60)
     try:
-        shutil.copytree(mount/'Geist.app', installed, symlinks=True)
+        shutil.copytree(mount/'geisten.app', installed, symlinks=True)
     finally:
         subprocess.run(['hdiutil','detach',str(mount)],check=True,capture_output=True,timeout=30)
     try:

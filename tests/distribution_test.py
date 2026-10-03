@@ -28,7 +28,7 @@ class DistributionTests(unittest.TestCase):
 
     def test_signing_is_inside_out_and_rehashes_before_seal(self):
         with tempfile.TemporaryDirectory() as folder:
-            app = Path(folder) / 'Geist.app'
+            app = Path(folder) / 'geisten.app'
             for target in d.targets(app)[:-1]:
                 if target.suffix in ('.framework', '.app', '.xpc'):
                     target.mkdir(parents=True, exist_ok=True)
@@ -53,7 +53,7 @@ class DistributionTests(unittest.TestCase):
             response=subprocess.CompletedProcess([],1,json.dumps({'id':'rejected-id','status':'Invalid'}),'rejected')
             with patch.object(d.subprocess,'run',return_value=response),patch.object(d,'run') as invoke:
                 with self.assertRaisesRegex(ValueError,'did not return Accepted'):
-                    d.notarize(Path(folder)/'Geist.zip','test-profile',directory)
+                    d.notarize(Path(folder)/'geisten.zip','test-profile',directory)
                 self.assertIn('Invalid',(directory/'submission.json').read_text())
                 self.assertEqual((directory/'submission-stderr.txt').read_text(),'rejected')
                 self.assertIn('log',invoke.call_args.args)
@@ -64,7 +64,7 @@ class DistributionTests(unittest.TestCase):
             response=subprocess.CompletedProcess([],1,'','authentication failed')
             with patch.object(d.subprocess,'run',return_value=response):
                 with self.assertRaisesRegex(ValueError,'no valid submission JSON'):
-                    d.notarize(Path(folder)/'Geist.zip','test-profile',directory)
+                    d.notarize(Path(folder)/'geisten.zip','test-profile',directory)
             self.assertEqual((directory/'submission-stderr.txt').read_text(),'authentication failed')
 
 

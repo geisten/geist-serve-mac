@@ -69,7 +69,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         let size = DesktopPolicy.initialSize(visible: NSScreen.main?.visibleFrame.size ?? NSSize(width: 1200, height: 800))
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-        window.title = "Geist"
+        window.title = "geisten"
         window.minSize = NSSize(width: 540, height: 480)
         window.titlebarSeparatorStyle = .none
         window.backgroundColor = .white
