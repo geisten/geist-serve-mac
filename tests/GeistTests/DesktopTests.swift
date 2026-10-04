@@ -270,7 +270,7 @@ final class DesktopWebViewTests: XCTestCase {
                 desktop.webView.pageZoom = zoom
                 desktop.window?.setContentSize(NSSize(width: width, height: 800))
                 try await Task.sleep(nanoseconds: 200_000_000)
-                let fits = try await evaluate(desktop.webView, "document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.model-pick')].every(e=>e.clientWidth>=44 && e.clientHeight>=44 && e.scrollWidth<=e.clientWidth+1) && [...document.querySelectorAll('.model-group')].every(e=>e.scrollWidth<=e.clientWidth+1)")
+                let fits = try await evaluate(desktop.webView, "document.documentElement.scrollWidth <= innerWidth && [...document.querySelectorAll('.model-pick')].filter(e=>e.checkVisibility()).every(e=>e.clientWidth>=44 && e.clientHeight>=44 && e.scrollWidth<=e.clientWidth+1) && [...document.querySelectorAll('.model-group')].filter(e=>e.checkVisibility()).every(e=>e.scrollWidth<=e.clientWidth+1)")
                 XCTAssertEqual(fits as? Bool, true, "Visible variants reflow at \(width) px and zoom \(zoom)")
                 _ = try await evaluate(desktop.webView, "(()=>{const group=document.querySelector('[data-group=\"qwen38-27b\"]'); const pane=document.querySelector('.model-sidebar'); pane.scrollTop=group.getBoundingClientRect().top-pane.getBoundingClientRect().top+pane.scrollTop; return true;})()")
                 try await snapshot(desktop.webView, name: "variants-\(Int(width))-zoom-\(zoom).png")
