@@ -198,8 +198,13 @@ final class DesktopWebViewTests: XCTestCase {
         desktop.window?.appearance = NSAppearance(named: .darkAqua)
         try await waitFor(desktop.webView, "matchMedia('(prefers-color-scheme: dark)').matches")
         try await snapshot(desktop.webView, name: "setup-dark.png")
-        let whiteTestPane = try await evaluate(desktop.webView, "getComputedStyle(document.getElementById('test-page')).backgroundColor === 'rgb(255, 255, 255)'")
-        XCTAssertEqual(whiteTestPane as? Bool, true, "The test pane remains white even under dark OS appearance")
+        // Under the dark appearance the text stays readable on the test pane (7:1), light or dark (geist-serve#124).
+        let readable = try await evaluate(desktop.webView, """
+            (() => { const lum = c => c.match(/[\\d.]+/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [.2126, .7152, .0722][i], 0);
+              const pane = getComputedStyle(document.getElementById('test-page')), a = lum(pane.backgroundColor), b = lum(pane.color);
+              return (Math.max(a, b) + .05) / (Math.min(a, b) + .05) >= 7; })()
+            """)
+        XCTAssertEqual(readable as? Bool, true, "The test pane stays readable under the dark OS appearance")
         desktop.window?.appearance = NSAppearance(named: .aqua)
         let initial = try await evaluate(desktop.webView, "document.getElementById('workspace').hidden && !document.getElementById('setup-start') && document.querySelectorAll('.model-pick').length === state.models.length && state.models.every(m => !m.preview_accepted)")
         XCTAssertEqual(initial as? Bool, true, "Preview requires a deliberate model click")
