@@ -207,8 +207,9 @@ final class DesktopWebViewTests: XCTestCase {
         let testVisible = try await evaluate(desktop.webView, "!document.getElementById('test-page').hidden")
         XCTAssertEqual(testVisible as? Bool, true)
         _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value = 'Keep my input'; document.getElementById('ui-language').value = 'de'; document.getElementById('ui-language').dispatchEvent(new Event('change')); true")
-        let heading = try await evaluate(desktop.webView, "document.getElementById('task-title').textContent")
-        XCTAssertEqual(heading as? String, "Kurz testen")
+        // The heading follows the language switch; the wording itself belongs to web/i18n.js (#56).
+        let heading = try await evaluate(desktop.webView, "document.getElementById('task-title').textContent === t('Quick test') && t('Quick test') !== 'Quick test'")
+        XCTAssertEqual(heading as? Bool, true)
         let retained = try await evaluate(desktop.webView, "document.getElementById('prompt').value")
         XCTAssertEqual(retained as? String, "Keep my input")
         _ = try await evaluate(desktop.webView, "document.getElementById('ui-language').value = 'en'; document.getElementById('ui-language').dispatchEvent(new Event('change')); true")
