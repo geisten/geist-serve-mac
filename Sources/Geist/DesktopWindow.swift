@@ -72,7 +72,7 @@ final class DesktopWindow: NSWindowController, WKNavigationDelegate, WKUIDelegat
         window.title = "geisten"
         window.minSize = NSSize(width: 540, height: 480)
         window.titlebarSeparatorStyle = .none
-        window.backgroundColor = .white
+        window.backgroundColor = .windowBackgroundColor // follows light/dark, no white flash (geist-serve#124)
         window.isReleasedWhenClosed = false
         window.center()
         super.init(window: window)
