@@ -15,23 +15,29 @@ Developer ID signing and notarization (#6).
 - **DMG:** open `geisten-<version>-arm64.dmg` and choose **Install and open**. The
   app copies itself to `/Applications/geisten.app`, checks the copy's signature
   and replaces an older version in place. Models and settings are kept.
-- **Homebrew cask:** planned as `brew install --cask geisten/tap/geist` once the
+- **Homebrew cask:** planned as `brew install --cask geisten/tap/geisten` once the
   first notarized DMG is published (#7). Until then, build a DMG yourself
   (see *Build a local app and DMG* below). The tap's `Formula/geist.rb` is the
   separate command-line engine and is unrelated to this app.
 
 ## First launch
 
-1. geisten opens its window with the model list. One model is marked
-   **Recommended for this Mac**, and the right-hand side names it with its
-   download size.
+1. geisten opens its window with the model list. Each model has a symbol:
+   ✓ good choice, ◐ usable with limits, ✗ not recommended here, ? not
+   measured yet. The words behind each symbol are in its tooltip. A line
+   above the list names the best installed model; a model to start with is
+   marked as the suggested start, with its download size.
 2. Click a model's name to download and start it. Downloads over 1 GB ask
    first and show their size; you can pause, resume or remove a download from
    its row. Every download is checked against its SHA-256 before use.
 3. When the model is ready, try it in **Quick test** or connect a program.
+4. The stopwatch next to an installed model measures its speed on this Mac;
+   the chart symbol above the list opens **Compare models**, where you can
+   change what counts as fast enough and reliable enough.
 
-Nothing is sent to a cloud service. Answer quality is not verified by geisten:
-check answers before you rely on them.
+Nothing is sent to a cloud service. The share of correct answers comes from a
+small reference test of each model (geist-serve `docs/MINI-BENCHMARK.md`), not
+from your own tasks: check answers before you rely on them.
 
 ## The menu bar
 
@@ -51,7 +57,9 @@ copied configuration contains your private local key; keep it out of
 repositories. The bundled command-line client is
 `/Applications/geisten.app/Contents/MacOS/geist-cli` (`geist-cli chat`,
 `geist-cli config continue`, `geist-cli config opencode`). Text chat only;
-agent tools are rejected. See the shared
+agent tools are rejected. Step-by-step setup for each program is in
+[docs/CLIENTS.md](https://github.com/geisten/geist-serve/blob/main/docs/CLIENTS.md);
+see also the shared
 [app guide](https://github.com/geisten/geist-serve/blob/main/docs/APP.md#shared-editor-endpoint).
 
 ## Where your data lives
@@ -71,6 +79,7 @@ agent tools are rejected. See the shared
 
    ```sh
    rm -rf ~/Library/Application\ Support/geisten
+   rm -f ~/Library/Application\ Support/Geist   # link left by the rename, if present
    defaults delete com.geisten.geist
    ```
 
