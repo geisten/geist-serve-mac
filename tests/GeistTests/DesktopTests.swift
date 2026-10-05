@@ -274,11 +274,12 @@ final class DesktopWebViewTests: XCTestCase {
                 XCTAssertEqual(fits as? Bool, true, "Visible variants reflow at \(width) px and zoom \(zoom)")
                 _ = try await evaluate(desktop.webView, "(()=>{const group=document.querySelector('[data-group=\"qwen38-27b\"]'); const pane=document.querySelector('.model-sidebar'); pane.scrollTop=group.getBoundingClientRect().top-pane.getBoundingClientRect().top+pane.scrollTop; return true;})()")
                 try await snapshot(desktop.webView, name: "variants-\(Int(width))-zoom-\(zoom).png")
-                _ = try await evaluate(desktop.webView, "openMeasurements(); true")
-                let sheetFits = try await evaluate(desktop.webView, "(()=>{const d=document.getElementById('performance').getBoundingClientRect(), c=document.getElementById('close-measurements').getBoundingClientRect(); return d.left>=-1 && d.right<=innerWidth+1 && d.bottom<=innerHeight+1 && c.top>=0 && c.bottom<=innerHeight && c.width>=44 && c.height>=44 && document.activeElement===document.getElementById('close-measurements');})()")
-                XCTAssertEqual(sheetFits as? Bool, true, "Measurement sheet stays reachable at enlarged text")
-                try await snapshot(desktop.webView, name: "measurements-\(Int(width))-zoom-\(zoom).png")
-                _ = try await evaluate(desktop.webView, "closeMeasurements(); true")
+                // geist-serve#146: the model comparison is the one sheet left; it stays reachable at enlarged text.
+                _ = try await evaluate(desktop.webView, "document.getElementById('open-compare').click(); true")
+                let sheetFits = try await evaluate(desktop.webView, "(()=>{const d=document.getElementById('compare-dialog').getBoundingClientRect(), c=document.getElementById('close-compare').getBoundingClientRect(); return d.left>=-1 && d.right<=innerWidth+1 && d.bottom<=innerHeight+1 && c.top>=0 && c.bottom<=innerHeight && c.width>=44 && c.height>=44 && document.activeElement===document.getElementById('close-compare');})()")
+                XCTAssertEqual(sheetFits as? Bool, true, "Comparison sheet stays reachable at enlarged text")
+                try await snapshot(desktop.webView, name: "compare-\(Int(width))-zoom-\(zoom).png")
+                _ = try await evaluate(desktop.webView, "document.getElementById('compare-dialog').close(); true")
             }
             desktop.webView.pageZoom = 1
             desktop.window?.contentMinSize = priorMinimum
@@ -321,25 +322,6 @@ final class DesktopWebViewTests: XCTestCase {
             }
             XCTAssertEqual(zoomError as? String, "", "Minimum window and enlarged text remain usable")
             try await snapshot(desktop.webView, name: "ready-minimum-zoom.png")
-            _ = try await evaluate(desktop.webView, "showPage('models-page'); openMeasurements(); document.getElementById('close-measurements').focus(); true")
-            let detailTab = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                windowNumber: desktop.window!.windowNumber, context: nil, characters: "\t",
-                charactersIgnoringModifiers: "\t", isARepeat: false, keyCode: 48)!
-            desktop.webView.keyDown(with: detailTab)
-            try await waitFor(desktop.webView, "document.activeElement === document.querySelector('.performance-content')")
-            let pageDown = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
-                windowNumber: desktop.window!.windowNumber, context: nil, characters: "\u{F72D}",
-                charactersIgnoringModifiers: "\u{F72D}", isARepeat: false, keyCode: 121)!
-            desktop.webView.keyDown(with: pageDown)
-            try await waitFor(desktop.webView, "document.querySelector('.performance-content').scrollTop > 0")
-            try await snapshot(desktop.webView, name: "performance-keyboard-scroll.png")
-            for target in ["document.getElementById('benchmark')", "document.getElementById('close-measurements')"] {
-                desktop.webView.keyDown(with: detailTab)
-                try await waitFor(desktop.webView, "document.activeElement === \(target)")
-            }
-            _ = try await evaluate(desktop.webView, "document.querySelector('.performance-content').scrollTop=0; true")
-            try await snapshot(desktop.webView, name: "performance-minimum-zoom.png")
-            _ = try await evaluate(desktop.webView, "closeMeasurements(); showPage('test-page'); true")
             desktop.webView.pageZoom = 1
             desktop.window?.setContentSize(NSSize(width: 540, height: 600))
             try await snapshot(desktop.webView, name: "ready-narrow.png")
@@ -352,21 +334,21 @@ final class DesktopWebViewTests: XCTestCase {
             let panesFit = try await evaluate(desktop.webView, "document.querySelector('.model-sidebar').getBoundingClientRect().right <= document.getElementById('test-page').getBoundingClientRect().left && document.documentElement.scrollWidth <= innerWidth")
             XCTAssertEqual(panesFit as? Bool, true, "Catalog and real reply fit side by side in the default window")
             try await waitFor(desktop.webView, "lastReply?.tokens > 0 && lastReply?.rate > 0 && state?.resources?.rss_bytes > 0")
-            _ = try await evaluate(desktop.webView, "showPage('models-page'); openMeasurements(); true")
+            _ = try await evaluate(desktop.webView, "showPage('models-page'); true")
             try await snapshot(desktop.webView, name: "performance-real-model.png")
             let hasGPU = try await evaluate(desktop.webView, "state.execution.gpu_available")
             if hasGPU as? Bool == true {
-                _ = try await evaluate(desktop.webView, "closeMeasurements(); window.retainedTranscript=document.getElementById('result').innerHTML; document.getElementById('prompt').value='Draft across a real GPU reload'; document.querySelector('[name=execution][value=gpu]').click(); true")
+                _ = try await evaluate(desktop.webView, "window.retainedTranscript=document.getElementById('result').innerHTML; document.getElementById('prompt').value='Draft across a real GPU reload'; document.querySelector('[name=execution][value=gpu]').click(); true")
                 try await waitFor(desktop.webView, "!requesting && state?.ready && state.execution.active==='gpu'", timeout: 900)
                 let retained = try await evaluate(desktop.webView, "!document.getElementById('workspace').hidden && document.getElementById('prompt').value==='Draft across a real GPU reload' && document.getElementById('result').innerHTML===window.retainedTranscript")
                 XCTAssertEqual(retained as? Bool, true, "Real GPU reload keeps transcript and draft")
                 _ = try await evaluate(desktop.webView, "document.getElementById('prompt').value='Say hello in one short sentence.'; document.getElementById('task-form').requestSubmit(); true")
                 try await waitFor(desktop.webView, "!controller && state.performance_history.length===2 && state.performance_history.every(sample=>sample.rate>0)", timeout: 900)
                 try await snapshot(desktop.webView, name: "cpu-gpu-comparison.png")
-                _ = try await evaluate(desktop.webView, "openMeasurements(); document.querySelector('.profile-table').scrollIntoView({block:'nearest'}); true")
-                try await snapshot(desktop.webView, name: "cpu-gpu-details.png")
+                let speeds = try await evaluate(desktop.webView, "['cpu','gpu'].every(p=>{const e=document.getElementById(`history-${p}-rate`);return e.checkVisibility() && /\\d/.test(e.textContent);})")
+                XCTAssertEqual(speeds as? Bool, true, "geist-serve#146: both measured speeds are visible on the processor choice")
             }
-            _ = try await evaluate(desktop.webView, "closeMeasurements(); showPage('test-page'); true")
+            _ = try await evaluate(desktop.webView, "showPage('test-page'); true")
             let realTokens = try await evaluate(desktop.webView, "document.querySelector('.reply-metrics').textContent")
             XCTAssertFalse((realTokens as? String ?? "—").contains("—"), "A real response must include final generation metrics")
             try await waitFor(desktop.webView, "!document.getElementById('test-connection').disabled")
