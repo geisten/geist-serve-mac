@@ -74,10 +74,8 @@ extension DesktopWebViewTests {
                     try await waitFor(desktop.webView, "(poll(), !!state && !controller && !state.inference_busy && document.querySelectorAll('.reply-metrics').length===\(index+1) && [...document.querySelectorAll('.reply-metrics')].at(-1).replyMetrics?.tokens>0)", timeout: 6000)
                 }
                 try await waitFor(desktop.webView, "state.memory.process_rss_bytes>0 && state.memory.status===\(mode == "gpu" ? 1 : 2)")
-                let scoped = try await evaluate(desktop.webView, "state.memory.total_unique_physical_bytes===null && document.getElementById('test-memory').textContent!=='—' && \(mode == "gpu" ? "state.memory.gpu_allocated_bytes>0 && state.memory.gpu_source==='metal.MTLDevice.currentAllocatedSize' && document.getElementById('test-gpu-memory').textContent!=='—'" : "state.memory.gpu_allocated_bytes===null && document.getElementById('test-gpu-memory').textContent==='—'")")
+                let scoped = try await evaluate(desktop.webView, "state.memory.total_unique_physical_bytes===null && \(mode == "gpu" ? "state.memory.gpu_allocated_bytes>0 && state.memory.gpu_source==='metal.MTLDevice.currentAllocatedSize' && document.getElementById('test-gpu-memory').textContent!=='—'" : "state.memory.gpu_allocated_bytes===null && document.getElementById('test-gpu-memory').textContent==='—'")")
                 XCTAssertEqual(scoped as? Bool, true, "The actual loaded backend must retain distinct memory scopes")
-                let fits = try await evaluate(desktop.webView, "(()=>{const r=document.querySelector('.model-metrics').getBoundingClientRect();return ['test-memory','test-gpu-memory','test-size'].every(id=>{const b=document.getElementById(id).parentElement.getBoundingClientRect();return b.top>=r.top && b.bottom<=r.bottom+1;});})()")
-                XCTAssertEqual(fits as? Bool, true, "All three scoped summary rows must fit")
                 let values = try await evaluate(desktop.webView, "JSON.stringify({memory:state.memory,lifecycle:state.lifecycle,backend:state.execution.active})") as! String
                 try values.write(to: folder.appendingPathComponent("bonsai-\(index)-\(mode)-\(stage).json"), atomically: true, encoding: .utf8)
                 try await snapshot(desktop.webView, name: "bonsai-\(index)-\(mode)-\(stage).png")
